@@ -304,12 +304,27 @@ export default function App() {
   const q = visibleQs[qi];
   const mappedQ = useMemo(() => {
     if (!q) return null;
+
+    // Dead-end removal: drop any HARD option that would leave 0 survivors given the
+    // answers so far — a user can never tap into the "nothing matched" wall. Soft dims
+    // (color/sleeve/fabric) only affect ranking, never cut the count, so they're never
+    // dropped; "no preference" (empty values) cards are always kept.
+    let cards = q.cards;
+    if (catalog && !q.soft) {
+      const viable = q.cards.filter((c) => {
+        if (!c.values || c.values.length === 0) return true; // skip / no-preference
+        const hypo = { ...answers, [q.id]: { label: c.label, values: c.values } };
+        return survivors(catalog, hypo, QUESTIONS).length > 0;
+      });
+      if (viable.length > 0) cards = viable; // never blank the screen — fall back to all
+    }
+
     const used = new Set(); // keep each card's photo distinct within this screen
     return {
       id: q.id,
       kicker: q.dim || 'Question',
       title: q.prompt,
-      options: q.cards.map((c) => ({
+      options: cards.map((c) => ({
         key: c.label,
         label: c.label,
         ph: c.emoji,
@@ -338,8 +353,10 @@ export default function App() {
       </div>
     );
   } else if (phase === 'quiz') {
+    // fixed-height shell on mobile so all cards fit the viewport (no scroll); footer
+    // dropped mid-quiz to reclaim vertical space.
     content = (
-      <div className="dz-quiz-shell">
+      <div className="dz-quiz-shell dz-quiz-shell--fixed">
         <Quiz
           q={mappedQ}
           qIndex={qi}
@@ -349,7 +366,6 @@ export default function App() {
           onPick={pick}
           onBack={back}
         />
-        <Footer />
       </div>
     );
   } else if (phase === 'results') {

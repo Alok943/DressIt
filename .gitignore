@@ -2,6 +2,11 @@
 .env
 *.env.local
 
+# local project context for Claude (not shared)
+CLAUDE.md
+# personal Claude permission allowlist (machine-local); launch.json is shared
+.claude/settings.local.json
+
 # python
 __pycache__/
 *.pyc
@@ -18,5 +23,6 @@ data/raw_*.json
 backend/reactions.jsonl
 reactions.jsonl
 
-# merge_catalog.py local safety backup (regenerated each merge)
+# merge_catalog.py / fix_categories.py local safety backups (regenerated each run)
 frontend/public/catalog.bak.json
+frontend/public/catalog*.bak.json

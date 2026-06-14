@@ -9,11 +9,30 @@ Run:  python merge_catalog.py bonkers           # merge data/tagged_bonkers.json
 - Backfills gender="men" on any existing entry missing it (current catalog = Snitch+Bear House, all menswear).
 - Replaces all entries of <brand> with the tagged set (idempotent / re-runnable).
 """
-import json, sys, io, shutil, os
+import json, sys, io, shutil, os, re
 from collections import Counter
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 CAT = "frontend/public/catalog.json"
+
+_RE_POLO = re.compile(r"\bpolo\b", re.I)
+_RE_NECK = re.compile(r"polo[\s-]?neck", re.I)  # "polo neck" = turtleneck, leave alone
+
+def fix_polo_categories(rows):
+    """Reclassify category=tshirt -> polo when the merchant's title says 'Polo'
+    (stores lump polo t-shirts under 'T-Shirts'). Keeps tshirt/polo quiz filters honest.
+    Mirrors fix_categories.py so the fix survives every merge."""
+    n = 0
+    for p in rows:
+        cat, title = p.get("category"), p.get("title", "") or ""
+        if not (_RE_POLO.search(title) and not _RE_NECK.search(title)):
+            continue
+        if isinstance(cat, list):
+            if "tshirt" in cat:
+                p["category"] = ["polo" if x == "tshirt" else x for x in cat]; n += 1
+        elif cat == "tshirt":
+            p["category"] = "polo"; n += 1
+    return n
 
 def main():
     if len(sys.argv) < 2:
@@ -37,7 +56,11 @@ def main():
     kept = [c for c in catalog if c.get("brand") != brand]
     merged = kept + tagged
 
+    # keep tshirt/polo honest — polos titled "Polo T-Shirt" must not land in tshirt
+    polos_fixed = fix_polo_categories(merged)
+
     print(f"catalog: {before} -> {len(merged)}  (removed {before-len(kept)} old '{brand}', added {len(tagged)})")
+    print(f"reclassified tshirt -> polo (title says polo): {polos_fixed}")
     print(f"backfilled gender=men on {backfilled} legacy entries")
     print(f"gender mix now: {dict(Counter(c.get('gender') for c in merged))}")
     nocat = sum(1 for c in tagged if not c.get('category'))

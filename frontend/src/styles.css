@@ -237,6 +237,35 @@ a { color: inherit; }
   .dz-quiz-grid { gap: 14px; }
 }
 
+/* ── Mobile: fit the whole quiz in the viewport, no scrolling ─────────────── */
+/* Bound the quiz to the screen, then let the card grid divide the leftover
+   space into equal rows and stretch cards to fill — even a 5-card (3-row)
+   question lands on one screen. */
+@media (max-width: 767px) {
+  .dz-quiz-shell--fixed {
+    height: calc(100dvh - 52px);   /* viewport minus the sticky navbar */
+    min-height: 0;
+    overflow: hidden;
+  }
+  /* Screen wrapper is the only child here — trim its vertical padding */
+  .dz-quiz-shell--fixed > div {
+    padding-top: 10px !important;
+    padding-bottom: 12px !important;
+  }
+  .dz-quiz-shell--fixed .dz-quiz-grid {
+    align-content: stretch;
+    grid-auto-rows: 1fr;           /* every row shares the height equally */
+    overflow: hidden;              /* no scroll — everything fits */
+    padding-bottom: 0;
+    gap: 9px;
+  }
+  .dz-quiz-shell--fixed .dz-qcard {
+    aspect-ratio: auto !important; /* drop fixed ratio; fill the grid cell instead */
+    height: 100%;
+    min-height: 0;
+  }
+}
+
 /* Quiz card photo: slow settle on load + gentle zoom on hover/active for life */
 .dz-qcard-img {
   transform: scale(1.001);
