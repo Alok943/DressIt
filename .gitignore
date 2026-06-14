@@ -1,0 +1,22 @@
+# secrets
+.env
+*.env.local
+
+# python
+__pycache__/
+*.pyc
+.venv/
+
+# node
+node_modules/
+dist/
+
+# large raw data (regenerate via pull scripts); keep normalized + catalog small
+data/raw_*.json
+
+# backend runtime logs
+backend/reactions.jsonl
+reactions.jsonl
+
+# merge_catalog.py local safety backup (regenerated each merge)
+frontend/public/catalog.bak.json

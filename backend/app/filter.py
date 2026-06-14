@@ -1,0 +1,75 @@
+# Python port of frontend/src/filter.js — kept intentionally identical in logic.
+
+QUESTIONS = [
+    {"id": "gender",   "dim": "gender"},
+    {"id": "category", "dim": "category"},
+    {"id": "occasion", "dim": "occasion"},
+    {"id": "fit",      "dim": "fit"},
+    {"id": "pattern",  "dim": "pattern"},
+    {"id": "color",    "dim": "color",   "soft": True},
+    {"id": "band",     "dim": "band"},
+    {"id": "sleeve",   "dim": "sleeve",  "soft": True},
+    {"id": "fabric",   "dim": "fabric",  "soft": True},
+]
+
+
+def matches(product: dict, dim: str, values: list[str]) -> bool:
+    if not values:
+        return True  # "no preference" / skip card
+    pv = product.get(dim, [])
+    if not isinstance(pv, list):
+        pv = [pv] if pv is not None else []
+    return any(v in pv for v in values)
+
+
+def survivors(catalog: list[dict], answers: dict) -> list[dict]:
+    result = []
+    for p in catalog:
+        ok = True
+        for q in QUESTIONS:
+            ans = answers.get(q["id"])
+            if not ans:
+                continue
+            if q.get("soft"):
+                continue
+            if not matches(p, q["dim"], ans["values"]):
+                ok = False
+                break
+        if ok:
+            result.append(p)
+    return result
+
+
+def rank_picks(catalog: list[dict], answers: dict, n: int = 5) -> tuple[list[dict], int]:
+    hard = survivors(catalog, answers)
+    soft_qs = [q for q in QUESTIONS if q.get("soft") and answers.get(q["id"])]
+
+    scored = []
+    for p in hard:
+        score = sum(
+            1 for q in soft_qs
+            if matches(p, q["dim"], answers[q["id"]]["values"])
+        )
+        scored.append((score, p))
+    scored.sort(key=lambda x: -x[0])
+
+    seen: set[str] = set()
+    top: list[dict] = []
+    for _, p in scored:
+        key = p.get("title", "").lower().strip()
+        if key in seen:
+            continue
+        seen.add(key)
+        top.append(p)
+        if len(top) >= n:
+            break
+
+    # never-zero-out: backfill allowing dupes if fewer than n unique titles
+    if len(top) < n:
+        for _, p in scored:
+            if len(top) >= n:
+                break
+            if p not in top:
+                top.append(p)
+
+    return top, len(hard)

@@ -1,0 +1,304 @@
+/* ─── Reset & Base ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; scroll-behavior: smooth; }
+body {
+  min-height: 100%;
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #26231F;
+  background: #FAF8F5;
+}
+#root { min-height: 100vh; display: flex; flex-direction: column; }
+img { display: block; max-width: 100%; }
+button { font-family: inherit; }
+a { color: inherit; }
+
+/* ─── Animations ───────────────────────────────────────────────────────── */
+@keyframes dzUp {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes dzFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ─── Navbar ───────────────────────────────────────────────────────────── */
+.dz-navbar {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px;
+  background: rgba(250, 248, 245, 0.82);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-bottom: 1px solid rgba(38, 35, 31, 0.08);
+}
+@media (min-width: 768px) {
+  .dz-navbar { padding: 16px 40px; }
+}
+.dz-navbar-logo {
+  font-family: var(--head);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--ink);
+  display: flex; align-items: center; gap: 8px;
+  text-decoration: none;
+  letter-spacing: 0.01em;
+}
+.dz-navbar-logo .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+.dz-navbar-nav {
+  display: flex; align-items: center; gap: 8px;
+}
+.dz-navbar-link {
+  font-size: 14px; font-weight: 500;
+  color: var(--ink-soft);
+  text-decoration: none;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  transition: background 0.15s, color 0.15s;
+}
+.dz-navbar-link:hover {
+  background: rgba(38, 35, 31, 0.05);
+  color: var(--ink);
+}
+.dz-navbar-cta {
+  font-size: 14px; font-weight: 500;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: none; cursor: pointer;
+  padding: 9px 20px;
+  border-radius: 9999px;
+  text-decoration: none;
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+.dz-navbar-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px -6px rgba(40,35,30,0.4);
+}
+
+/* ─── Landing page ─────────────────────────────────────────────────────── */
+.dz-landing {
+  flex: 1; display: flex; flex-direction: column;
+}
+.dz-hero-section {
+  padding: 48px 20px 56px;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+}
+@media (min-width: 768px) {
+  .dz-hero-section { padding: 80px 40px 72px; }
+}
+.dz-hero-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent);
+  background: rgba(90, 107, 82, 0.08);
+  padding: 6px 16px; border-radius: 9999px;
+  margin-bottom: 24px;
+}
+.dz-hero-title {
+  font-family: var(--head);
+  font-weight: 400;
+  font-size: clamp(36px, 8vw, 56px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  max-width: 600px;
+  text-wrap: balance;
+  margin-bottom: 18px;
+}
+.dz-hero-sub {
+  font-size: clamp(15px, 3.5vw, 18px);
+  line-height: 1.6;
+  color: var(--ink-soft);
+  max-width: 480px;
+  margin-bottom: 36px;
+}
+.dz-hero-cta {
+  font-size: 17px; font-weight: 500;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border: none; cursor: pointer;
+  padding: 18px 40px;
+  border-radius: 9999px;
+  transition: box-shadow 0.2s, transform 0.2s;
+  box-shadow: 0 4px 16px -6px rgba(40,35,30,0.35);
+}
+.dz-hero-cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -8px rgba(40,35,30,0.45);
+}
+
+/* How it works */
+.dz-how {
+  background: rgba(38, 35, 31, 0.025);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 56px 20px;
+}
+@media (min-width: 768px) { .dz-how { padding: 72px 40px; } }
+.dz-how-title {
+  font-family: var(--head);
+  font-weight: 400;
+  font-size: clamp(24px, 5vw, 32px);
+  color: var(--ink);
+  text-align: center;
+  margin-bottom: 40px;
+}
+.dz-how-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 28px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+@media (min-width: 640px) { .dz-how-grid { grid-template-columns: repeat(3, 1fr); gap: 24px; } }
+.dz-how-step {
+  text-align: center;
+  padding: 24px 16px;
+}
+.dz-how-num {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 600;
+  margin: 0 auto 16px;
+}
+.dz-how-step h3 {
+  font-family: var(--head);
+  font-weight: 400;
+  font-size: 20px;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.dz-how-step p {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+/* Social proof */
+.dz-social {
+  padding: 48px 20px;
+  text-align: center;
+}
+@media (min-width: 768px) { .dz-social { padding: 64px 40px; } }
+.dz-social-stats {
+  display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;
+}
+.dz-social-stat span:first-child {
+  font-family: var(--head);
+  font-size: clamp(28px, 6vw, 36px);
+  color: var(--ink);
+  display: block;
+}
+.dz-social-stat span:last-child {
+  font-size: 13px;
+  color: var(--ink-soft);
+  letter-spacing: 0.04em;
+}
+
+/* ─── Quiz flow container ──────────────────────────────────────────────── */
+.dz-quiz-shell {
+  flex: 1;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 60px);
+}
+@media (min-width: 768px) {
+  .dz-quiz-shell {
+    max-width: 560px;
+    padding: 0 24px;
+  }
+}
+
+/* Quiz card grid */
+.dz-quiz-grid {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 11px;
+  align-content: start;          /* cards keep their aspect ratio, no vertical stretch */
+  overflow-y: auto;              /* scroll cards if they exceed the area; counter stays pinned */
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+}
+@media (min-width: 768px) {
+  .dz-quiz-grid { gap: 14px; }
+}
+
+/* Quiz card photo: slow settle on load + gentle zoom on hover/active for life */
+.dz-qcard-img {
+  transform: scale(1.001);
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.3s ease;
+  filter: saturate(0.96) contrast(1.02);
+}
+@media (hover: hover) {
+  .dz-qcard:hover .dz-qcard-img { transform: scale(1.055); filter: saturate(1.05) contrast(1.04); }
+}
+.dz-qcard:active .dz-qcard-img { transform: scale(1.02); }
+
+/* Results grid */
+.dz-results-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 36px;
+}
+@media (min-width: 640px) {
+  .dz-results-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+}
+
+/* ─── Footer ───────────────────────────────────────────────────────────── */
+.dz-footer {
+  border-top: 1px solid var(--line);
+  padding: 32px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  margin-top: auto;
+}
+@media (min-width: 768px) {
+  .dz-footer {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 24px 40px;
+  }
+}
+.dz-footer-logo {
+  font-family: var(--head);
+  font-size: 18px;
+  color: var(--ink);
+  display: flex; align-items: center; gap: 6px;
+}
+.dz-footer-logo .dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--accent);
+}
+.dz-footer-links {
+  display: flex; gap: 20px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.dz-footer-links a {
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.dz-footer-links a:hover { color: var(--ink); }
+.dz-footer-copy {
+  font-size: 12px;
+  color: rgba(38,35,31,0.4);
+}
