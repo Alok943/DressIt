@@ -1,0 +1,27 @@
+# Render blueprint for the Dressit FastAPI backend.
+# Deploy: Render dashboard → New → Blueprint → connect Alok943/DressIt → apply.
+# Root is the repo (NOT backend/) so config.py's catalog path
+# (Path(__file__).parents[2] / "frontend/public/catalog.json") resolves at runtime.
+services:
+  - type: web
+    name: dressit-api
+    runtime: python
+    plan: free
+    region: singapore            # closest Render region to India; change if you prefer
+    buildCommand: pip install -r backend/requirements.txt
+    # --app-dir backend puts backend/ on sys.path so `app.main` imports; catalog
+    # path is resolved from __file__, independent of CWD.
+    startCommand: uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.3"
+      # Set AFTER the Vercel frontend URL exists (comma-separated, no spaces needed).
+      # e.g. https://dressit.vercel.app,https://www.dressit.app
+      - key: CORS_ORIGINS
+        sync: false
+      # Optional Groq re-ranker — leave RERANKER_ENABLED=false until the key is set.
+      - key: RERANKER_ENABLED
+        value: "false"
+      - key: GROQ_API_KEY
+        sync: false
