@@ -119,10 +119,18 @@ function QuizCard({ option, index, selected, dimmed, onPick, fill }) {
         background: 'linear-gradient(to top, rgba(38,35,31,0.62), transparent)',
         display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8,
       }}>
-        <span style={{
-          fontFamily: 'var(--head)', color: '#FBF9F5', fontSize: 18.5, lineHeight: 1.04,
-          letterSpacing: '0.005em', whiteSpace: 'nowrap',
-        }}>{option.label}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+          <span style={{
+            fontFamily: 'var(--head)', color: '#FBF9F5', fontSize: 18.5, lineHeight: 1.1,
+            letterSpacing: '0.005em',
+          }}>{option.label}</span>
+          {option.subtitle && (
+            <span style={{
+              fontSize: 10.5, color: 'rgba(251,249,245,0.72)', letterSpacing: '0.02em',
+              lineHeight: 1.3, whiteSpace: 'normal',
+            }}>{option.subtitle}</span>
+          )}
+        </div>
         <span style={{
           width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
           border: selected ? 'none' : '1.5px solid rgba(251,249,245,0.7)',
