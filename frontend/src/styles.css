@@ -533,6 +533,20 @@ a { color: inherit; }
 }
 .dz-qcard:active .dz-qcard-img { transform: scale(1.02); }
 
+/* Results filter chips */
+.dz-filters {
+  display: flex; flex-direction: column; gap: 10px;
+  margin-bottom: 30px;
+}
+.dz-filterrow {
+  display: flex; align-items: center; gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.dz-filterrow::-webkit-scrollbar { display: none; }
+
 /* Results grid — scales to the full match set (2 up on tablet, 3 up on desktop) */
 .dz-results-grid {
   display: grid;

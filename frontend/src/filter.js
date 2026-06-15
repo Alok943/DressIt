@@ -39,7 +39,31 @@ export function survivors(catalog, answers, questions) {
   );
 }
 
-// final ranked picks: hard survivors, scored by how many SOFT prefs they also match
+// Round-robin across brands so one big catalog (Snitch) can't dominate the top.
+// Brands enter in order of their best-ranked item; we then take one from each in
+// turn. Keep identical to interleave_by_brand in filter.py.
+export function interleaveByBrand(list) {
+  const groups = new Map();
+  for (const p of list) {
+    const b = p.brand || '';
+    if (!groups.has(b)) groups.set(b, []);
+    groups.get(b).push(p);
+  }
+  const queues = [...groups.values()];
+  const out = [];
+  let added = true;
+  while (added) {
+    added = false;
+    for (const q of queues) {
+      const item = q.shift();
+      if (item) { out.push(item); added = true; }
+    }
+  }
+  return out;
+}
+
+// final ranked picks: hard survivors, scored by how many SOFT prefs they also match,
+// deduped to one per product family, then interleaved across brands for variety
 export function rankPicks(catalog, answers, questions, n = 5) {
   const hard = survivors(catalog, answers, questions);
   const softQs = questions.filter((q) => q.soft && answers[q.id]);
@@ -51,20 +75,12 @@ export function rankPicks(catalog, answers, questions, n = 5) {
   scored.sort((a, b) => b.score - a.score);
   // dedupe colour/size variants of the same product (see familyKey)
   const seen = new Set();
-  const top = [];
+  const uniq = [];
   for (const { p } of scored) {
     const key = familyKey(p);
     if (seen.has(key)) continue;
     seen.add(key);
-    top.push(p);
-    if (top.length >= n) break;
+    uniq.push(p);
   }
-  // never-zero-out: if too few unique, backfill allowing dupes
-  if (top.length < n) {
-    for (const { p } of scored) {
-      if (top.length >= n) break;
-      if (!top.includes(p)) top.push(p);
-    }
-  }
-  return top;
+  return interleaveByBrand(uniq).slice(0, n);
 }

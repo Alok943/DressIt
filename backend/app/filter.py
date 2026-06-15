@@ -62,6 +62,24 @@ def survivors(catalog: list[dict], answers: dict) -> list[dict]:
     return result
 
 
+def interleave_by_brand(items: list[dict]) -> list[dict]:
+    """Round-robin across brands so one big catalog can't dominate the top.
+    Keep identical to interleaveByBrand in filter.js."""
+    groups: dict[str, list[dict]] = {}
+    for p in items:
+        groups.setdefault(p.get("brand", "") or "", []).append(p)
+    queues = list(groups.values())
+    out: list[dict] = []
+    added = True
+    while added:
+        added = False
+        for q in queues:
+            if q:
+                out.append(q.pop(0))
+                added = True
+    return out
+
+
 def rank_picks(catalog: list[dict], answers: dict, n: int = 5) -> tuple[list[dict], int]:
     hard = survivors(catalog, answers)
     soft_qs = [q for q in QUESTIONS if q.get("soft") and answers.get(q["id"])]
@@ -75,23 +93,14 @@ def rank_picks(catalog: list[dict], answers: dict, n: int = 5) -> tuple[list[dic
         scored.append((score, p))
     scored.sort(key=lambda x: -x[0])
 
+    # dedupe colour/size variants of the same product (see family_key)
     seen: set[str] = set()
-    top: list[dict] = []
+    uniq: list[dict] = []
     for _, p in scored:
         key = family_key(p)
         if key in seen:
             continue
         seen.add(key)
-        top.append(p)
-        if len(top) >= n:
-            break
+        uniq.append(p)
 
-    # never-zero-out: backfill allowing dupes if fewer than n unique titles
-    if len(top) < n:
-        for _, p in scored:
-            if len(top) >= n:
-                break
-            if p not in top:
-                top.append(p)
-
-    return top, len(hard)
+    return interleave_by_brand(uniq)[:n], len(hard)

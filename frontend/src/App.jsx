@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Quiz, Results, Profile } from './components/Screens';
 import { TweaksPanel, TweakSection, TweakSelect, TweakRadio, TweakColor, TweakSlider, useTweaks } from './components/TweaksPanel';
-import { QUESTIONS, FORK_AFTER } from './quizConfig.js';
+import { QUESTIONS, FORK_AFTER, COLOR_BUCKETS } from './quizConfig.js';
 import { survivors, rankPicks, matches } from './filter.js';
 import { initAnalytics, track } from './analytics.js';
 import { CARD_IMAGES } from './cardImages.js';
@@ -11,6 +11,13 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 // Show the full match set (not a hard 5), capped for performance. Keep in sync with
 // MAX_PICKS in backend/app/routes/picks.py.
 const MAX_PICKS = 60;
+
+// Display names for the brand filter chips (catalog stores lowercase keys).
+const BRAND_LABELS = {
+  snitch: 'Snitch', bearhouse: 'Bear House', bonkers: 'Bonkers',
+  powerlook: 'Powerlook', vastrado: 'Vastrado', offduty: 'Offduty',
+};
+const brandLabel = (b) => BRAND_LABELS[b] || (b ? b[0].toUpperCase() + b.slice(1) : b);
 
 // Dynamic card art: show the item the user is actually shopping for, in this card's variation.
 // Once "Polos" is chosen, the occasion/fit/colour cards each show a *polo* (casual polo, navy polo…),
@@ -356,6 +363,8 @@ export default function App() {
   const [verdict, setVerdict] = useState(null);
   const [picks, setPicks] = useState(null);
   const [picksLoading, setPicksLoading] = useState(false);
+  const [brandFilter, setBrandFilter] = useState('all');
+  const [colorFilter, setColorFilter] = useState('all');
   const locked = useRef(false);
   const sessionId = useRef(Math.random().toString(36).slice(2));
 
@@ -368,6 +377,8 @@ export default function App() {
   const fetchPicks = useCallback(async (resolvedAnswers) => {
     setPicksLoading(true);
     setPicks(null);
+    setBrandFilter('all');
+    setColorFilter('all');
     try {
       const res = await fetch(`${API_BASE}/api/picks`, {
         method: 'POST',
@@ -414,6 +425,13 @@ export default function App() {
     () => QUESTIONS.filter((q) => !q.showIf || q.showIf(answers)),
     [answers],
   );
+
+  // link -> catalog product, for reading a pick's colour in the results filter
+  const catByLink = useMemo(() => {
+    const m = {};
+    if (catalog) for (const p of catalog) m[p.link] = p;
+    return m;
+  }, [catalog]);
 
   const theme = {
     '--bg': t.bg,
@@ -474,6 +492,8 @@ export default function App() {
     setAnswers({});
     setReactions({});
     setVerdict(null);
+    setBrandFilter('all');
+    setColorFilter('all');
     setQi(0);
     setPhase('hero');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -576,7 +596,28 @@ export default function App() {
     // remaining (post-core) questions still unanswered → offer "Refine further"
     const nextUnanswered = visibleQs.findIndex((vq) => !answers[vq.id]);
     const canRefine = nextUnanswered !== -1;
-    const mappedPicks = (picks || []).map((p) => ({
+
+    // colour lookup per pick (picks don't carry colour; read it from the catalog)
+    const colorOf = (p) => {
+      const cp = catByLink[p.link || p.id];
+      const c = cp ? cp.color : [];
+      return Array.isArray(c) ? c : (c ? [c] : []);
+    };
+    const inBucket = (p, bucket) => colorOf(p).some((c) => (COLOR_BUCKETS[bucket] || []).includes(c));
+
+    const allPicks = picks || [];
+    // which brands / colour buckets are actually present in this result set
+    const brandOpts = [...new Set(allPicks.map((p) => p.brand))]
+      .map((b) => ({ key: b, label: brandLabel(b) }));
+    const colorOpts = Object.keys(COLOR_BUCKETS)
+      .filter((bucket) => allPicks.some((p) => inBucket(p, bucket)))
+      .map((bucket) => ({ key: bucket, label: bucket[0].toUpperCase() + bucket.slice(1) }));
+
+    const filtered = allPicks.filter((p) =>
+      (brandFilter === 'all' || p.brand === brandFilter) &&
+      (colorFilter === 'all' || inBucket(p, colorFilter)),
+    );
+    const mappedPicks = filtered.map((p) => ({
       id: p.link || p.id,
       name: p.title || p.name,
       price: p.price,
@@ -610,6 +651,12 @@ export default function App() {
             onRefine={canRefine ? () => { setQi(nextUnanswered); setPhase('quiz'); } : null}
             refineCount={count}
             radius={t.cardRadius}
+            brandOpts={brandOpts}
+            colorOpts={colorOpts}
+            brandFilter={brandFilter}
+            colorFilter={colorFilter}
+            onBrandFilter={setBrandFilter}
+            onColorFilter={setColorFilter}
           />
         )}
         <Footer />

@@ -161,26 +161,61 @@ function ProductCard({ product, index, reaction, onReact, radius }) {
   );
 }
 
+// ── Filter chips (brand / colour) ─────────────────────────────────────────
+function FilterChips({ label, options, value, onChange }) {
+  if (!options || options.length < 2) return null; // nothing to choose between
+  const chip = (key, text) => {
+    const active = value === key;
+    return (
+      <button
+        key={key}
+        onClick={() => onChange(key)}
+        style={{
+          flexShrink: 0, cursor: 'pointer', fontFamily: 'inherit',
+          fontSize: 13, fontWeight: 500, padding: '7px 14px', borderRadius: 9999,
+          border: active ? '1px solid var(--accent)' : '1px solid var(--line)',
+          background: active ? 'var(--accent)' : 'transparent',
+          color: active ? 'var(--accent-ink)' : 'var(--ink)',
+          transition: 'background .15s, border-color .15s, color .15s',
+        }}
+      >{text}</button>
+    );
+  };
+  return (
+    <div className="dz-filterrow">
+      <span style={{ fontSize: 11.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--ink-soft)', flexShrink: 0, alignSelf: 'center', marginRight: 2 }}>{label}</span>
+      {chip('all', 'All')}
+      {options.map((o) => chip(o.key, o.label))}
+    </div>
+  );
+}
+
 // ── Results ─────────────────────────────────────────────────────────────
-function Results({ products, reactions, onReact, headline, verdict, onVerdict, onProfile, onBack, onRefine, refineCount, radius }) {
+function Results({ products, reactions, onReact, headline, verdict, onVerdict, onProfile, onBack, onRefine, refineCount, radius,
+  brandOpts = [], colorOpts = [], brandFilter = 'all', colorFilter = 'all', onBrandFilter, onColorFilter }) {
   const shown = products.length;
   // total = the live counter the shopper just watched (hard survivors). `shown` may be
   // fewer: deduped near-identical titles, or capped by MAX_PICKS on a broad query.
   const total = typeof refineCount === 'number' && refineCount >= shown ? refineCount : shown;
+  const filtered = brandFilter !== 'all' || colorFilter !== 'all';
   const empty = shown === 0;
   const capped = shown < total;
   const safeHeadline = empty
-    ? 'Nothing matched everything.'
+    ? (filtered ? 'No matches for this combo.' : 'Nothing matched everything.')
     : total === 1
       ? 'One piece matches your style.'
       : `${total.toLocaleString('en-US')} pieces match your style.`;
   const sub = empty
-    ? 'Your picks were a touch too specific. Tap back and loosen one — colour or fabric usually opens things up.'
-    : capped
-      ? `Showing the top ${shown}. Keep refining to narrow it down — a 👍 or 👎 sharpens what comes next. (Smarter, preference-based ranking is on the way.)`
-      : shown === 1
-        ? 'Just one that genuinely fits. A 👍 or 👎 sharpens what comes next.'
-        : `Every one that matches your picks. A 👍 or 👎 sharpens what comes next.`;
+    ? (filtered
+        ? 'Nothing here for those filters — clear one to widen the net.'
+        : 'Your picks were a touch too specific. Tap back and loosen one — colour or fabric usually opens things up.')
+    : filtered
+      ? `Showing ${shown} ${shown === 1 ? 'piece' : 'pieces'} for your filters. A 👍 or 👎 sharpens what comes next.`
+      : capped
+        ? `Showing the top ${shown}. Filter by brand or colour below, or keep refining — a 👍 or 👎 sharpens what comes next.`
+        : shown === 1
+          ? 'Just one that genuinely fits. A 👍 or 👎 sharpens what comes next.'
+          : `Every one that matches your picks. A 👍 or 👎 sharpens what comes next.`;
   return (
     <Screen scroll animKey="results">
       <TopBar onBack={onBack} label="your edit" />
@@ -209,9 +244,16 @@ function Results({ products, reactions, onReact, headline, verdict, onVerdict, o
         fontFamily: 'var(--head)', fontWeight: 400, margin: '8px 0 0',
         fontSize: 'clamp(30px, 8vw, 40px)', lineHeight: 1.05, letterSpacing: '-0.005em', color: 'var(--ink)', textWrap: 'balance',
       }}>{safeHeadline}</h1>
-      <p style={{ margin: '12px 0 32px', fontSize: 15, lineHeight: 1.55, color: 'var(--ink-soft)' }}>
+      <p style={{ margin: '12px 0 22px', fontSize: 15, lineHeight: 1.55, color: 'var(--ink-soft)' }}>
         {sub}
       </p>
+
+      {(brandOpts.length > 1 || colorOpts.length > 1) && (
+        <div className="dz-filters">
+          <FilterChips label="Brand" options={brandOpts} value={brandFilter} onChange={onBrandFilter} />
+          <FilterChips label="Colour" options={colorOpts} value={colorFilter} onChange={onColorFilter} />
+        </div>
+      )}
 
       <div className="dz-results-grid">
         {products.map((p, i) => (
