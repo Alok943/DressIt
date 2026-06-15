@@ -15,20 +15,51 @@ def _answer_summary(answers: dict) -> str:
     return ", ".join(parts)
 
 
+# human-readable names for canonical schema values used in the "why" line
+_CATEGORY_NAMES = {
+    "tshirt": "tee", "polo": "polo", "shirt": "shirt", "jeans": "jeans",
+    "trousers": "trousers", "cargo": "cargos", "shorts": "shorts",
+    "jacket": "jacket", "sweater": "sweater", "hoodie": "hoodie",
+    "sweatshirt": "sweatshirt", "joggers": "joggers", "top": "top",
+    "dress": "dress", "coord": "co-ord", "skirt": "skirt",
+}
+_OCCASION_NAMES = {
+    "smart_casual": "smart-casual", "casual": "everyday", "work": "the office",
+    "party": "a night out", "street": "street style", "formal": "formal looks",
+    "festive": "festive days",
+}
+
+
 def _rule_why(product: dict, answers: dict) -> str:
-    parts = []
+    """A short, human reason — reads like a stylist note, not a tag dump.
+
+    e.g. "An olive tee with an easy fit — made for everyday."
+    """
     color = product.get("color")
-    if color:
-        c = color[0] if isinstance(color, list) else color
-        parts.append(c.capitalize())
+    c = (color[0] if isinstance(color, list) else color) if color else None
+
     cat = product.get("category")
-    if cat:
-        parts.append(cat if isinstance(cat, str) else cat[0])
+    cat = (cat[0] if isinstance(cat, list) else cat) if cat else None
+    cat_name = _CATEGORY_NAMES.get(cat, cat) if cat else "piece"
+
+    fit = product.get("fit")
+    f = (fit[0] if isinstance(fit, list) else fit) if fit else None
+    fit_phrase = {
+        "slim": "a slim cut", "skinny": "a slim cut", "muscle": "a slim cut",
+        "regular": "an easy fit", "straight": "an easy fit", "tapered": "an easy fit",
+        "relaxed": "a relaxed drape", "oversized": "a relaxed drape", "baggy": "a relaxed drape",
+    }.get(f)
+
     occ = product.get("occasion")
-    if occ:
-        o = occ[0] if isinstance(occ, list) else occ
-        parts.append(f"great for {o.replace('_', ' ')}")
-    return ", ".join(parts) + "." if parts else "Matches your style profile."
+    o = (occ[0] if isinstance(occ, list) else occ) if occ else None
+    occ_name = _OCCASION_NAMES.get(o, o.replace("_", " ")) if o else None
+
+    head = f"{c.capitalize()} {cat_name}" if c else f"A {cat_name}"
+    if fit_phrase:
+        head += f" with {fit_phrase}"
+    if occ_name:
+        return f"{head} — made for {occ_name}."
+    return f"{head}." if head else "Matches your style profile."
 
 
 def rerank(products: list[dict], answers: dict, n: int = 5) -> list[dict] | None:

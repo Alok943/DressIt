@@ -21,7 +21,15 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="repla
 from tagger import tag_product, MODEL
 
 CTX = ssl._create_unverified_context()
-UA = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/125.0"}
+# A complete, realistic browser header set. Bonkers Corner (and other Cloudflare-fronted
+# stores) 403 an incomplete UA — the string must include AppleWebKit/.../Safari and be
+# paired with Accept/Accept-Language, or the bot filter rejects products.json.
+UA = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Accept": "application/json,text/html,application/xhtml+xml,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 
 def band(p):
     return None if p is None else ("budget" if p < 1200 else "mid" if p < 2000 else "premium")

@@ -149,6 +149,7 @@ function ProductCard({ product, index, reaction, onReact, radius }) {
               fontFamily: 'inherit',
               fontSize: 13, color: 'var(--ink)', display: 'inline-flex', alignItems: 'center', gap: 5,
               textDecoration: 'underline', textUnderlineOffset: 3, textDecorationColor: 'var(--line)',
+              textTransform: 'capitalize',
             }}
           >
             View at {product.brand}
@@ -162,19 +163,24 @@ function ProductCard({ product, index, reaction, onReact, radius }) {
 
 // ── Results ─────────────────────────────────────────────────────────────
 function Results({ products, reactions, onReact, headline, verdict, onVerdict, onProfile, onBack, onRefine, refineCount, radius }) {
-  const n = products.length;
-  // copy must reflect the real count — never claim 5 when fewer survived
-  const empty = n === 0;
+  const shown = products.length;
+  // total = the live counter the shopper just watched (hard survivors). `shown` may be
+  // fewer: deduped near-identical titles, or capped by MAX_PICKS on a broad query.
+  const total = typeof refineCount === 'number' && refineCount >= shown ? refineCount : shown;
+  const empty = shown === 0;
+  const capped = shown < total;
   const safeHeadline = empty
     ? 'Nothing matched everything.'
-    : (headline || '').replace(/\b5\b/g, String(n)).replace(/\bFive\b/g, n === 1 ? 'One' : String(n));
+    : total === 1
+      ? 'One piece matches your style.'
+      : `${total.toLocaleString('en-US')} pieces match your style.`;
   const sub = empty
     ? 'Your picks were a touch too specific. Tap back and loosen one — colour or fabric usually opens things up.'
-    : n >= 5
-      ? 'Five, not five hundred. A 👍 or 👎 sharpens what comes next — no obligation.'
-      : n === 1
-        ? 'Just one that genuinely fits — quality over quantity. A 👍 or 👎 sharpens what comes next.'
-        : `Just ${n} that genuinely fit your picks — quality over quantity. A 👍 or 👎 sharpens what comes next.`;
+    : capped
+      ? `Showing the top ${shown}. Keep refining to narrow it down — a 👍 or 👎 sharpens what comes next. (Smarter, preference-based ranking is on the way.)`
+      : shown === 1
+        ? 'Just one that genuinely fits. A 👍 or 👎 sharpens what comes next.'
+        : `Every one that matches your picks. A 👍 or 👎 sharpens what comes next.`;
   return (
     <Screen scroll animKey="results">
       <TopBar onBack={onBack} label="your edit" />

@@ -115,19 +115,19 @@ function QuizCard({ option, index, selected, dimmed, onPick, fill }) {
       )}
       {/* scrim + label */}
       <div style={{
-        position: 'absolute', left: 0, right: 0, bottom: 0, padding: '22px 13px 12px',
-        background: 'linear-gradient(to top, rgba(38,35,31,0.62), transparent)',
+        position: 'absolute', left: 0, right: 0, bottom: 0, padding: '34px 13px 13px',
+        background: 'linear-gradient(to top, rgba(28,25,21,0.82) 0%, rgba(28,25,21,0.48) 42%, transparent 100%)',
         display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8,
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
           <span style={{
-            fontFamily: 'var(--head)', color: '#FBF9F5', fontSize: 18.5, lineHeight: 1.1,
-            letterSpacing: '0.005em',
+            fontFamily: 'var(--head)', color: '#FBF9F5', fontSize: 18.5, lineHeight: 1.08,
+            letterSpacing: '0.005em', textShadow: '0 1px 8px rgba(20,17,14,0.45)',
           }}>{option.label}</span>
           {option.subtitle && (
             <span style={{
-              fontSize: 10.5, color: 'rgba(251,249,245,0.72)', letterSpacing: '0.02em',
-              lineHeight: 1.3, whiteSpace: 'normal',
+              fontSize: 11, color: 'rgba(251,249,245,0.82)', letterSpacing: '0.01em',
+              lineHeight: 1.32, whiteSpace: 'normal', textShadow: '0 1px 6px rgba(20,17,14,0.5)',
             }}>{option.subtitle}</span>
           )}
         </div>

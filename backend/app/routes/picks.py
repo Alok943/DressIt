@@ -6,6 +6,11 @@ from ..schemas import PicksRequest, PicksResponse, PickedProduct
 
 router = APIRouter()
 
+# Show the full match set, not a hard 5. Capped so a broad query can't try to
+# render hundreds of image cards — surfaced to the user as "top N of <count>".
+# Preference-based narrowing (LLM re-rank) is the future lever, not a fixed cut.
+MAX_PICKS = 60
+
 
 @router.post("/picks", response_model=PicksResponse)
 def get_picks(body: PicksRequest):
@@ -13,12 +18,12 @@ def get_picks(body: PicksRequest):
     answers = {k: v.model_dump() for k, v in body.answers.items()}
 
     # score + dedupe (same logic as frontend filter.js)
-    picks, count = rank_picks(catalog, answers, n=20)  # fetch 20 for re-ranker headroom
+    picks, count = rank_picks(catalog, answers, n=MAX_PICKS)
 
-    # optional LLM re-rank (gated by RERANKER_ENABLED)
+    # optional LLM re-rank (gated by RERANKER_ENABLED) — advisory, still capped to 5 when on
     reranked_picks = rerank(picks, answers, n=5)
     reranked = reranked_picks is not None
-    final = reranked_picks if reranked else picks[:5]
+    final = reranked_picks if reranked else picks
 
     mapped = [
         PickedProduct(

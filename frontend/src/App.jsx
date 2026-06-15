@@ -8,6 +8,10 @@ import { CARD_IMAGES } from './cardImages.js';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
+// Show the full match set (not a hard 5), capped for performance. Keep in sync with
+// MAX_PICKS in backend/app/routes/picks.py.
+const MAX_PICKS = 60;
+
 // Dynamic card art: show the item the user is actually shopping for, in this card's variation.
 // Once "Polos" is chosen, the occasion/fit/colour cards each show a *polo* (casual polo, navy polo…),
 // not a generic shirt. Relaxation ladder: gender+category+attribute -> gender+attribute -> attribute.
@@ -63,9 +67,8 @@ const ACCENT_INK = {
 function Navbar({ phase, onLogoClick }) {
   return (
     <nav className="dz-navbar">
-      <a href="#" className="dz-navbar-logo" onClick={(e) => { e.preventDefault(); onLogoClick(); }}>
-        <span className="dot" />
-        Dressit
+      <a href="#" className="dz-navbar-logo" onClick={(e) => { e.preventDefault(); onLogoClick(); }} aria-label="Dressit — home">
+        <img src="/dressit-wordmark.png" alt="Dressit" className="dz-logo-img" />
       </a>
       <div className="dz-navbar-nav">
         {phase === 'hero' && (
@@ -90,33 +93,184 @@ function Navbar({ phase, onLogoClick }) {
   );
 }
 
+// Pick a spread of real catalog photos for the landing — varied across categories
+// so the hero/lookbook reads like a curated editorial, not one rack. Shuffled per
+// visit for freshness. Returns [] until the catalog loads (callers fall back to tiles).
+function pickShowcase(catalog, n) {
+  if (!catalog) return [];
+  const byCat = {};
+  for (const p of catalog) {
+    if (!p.image) continue;
+    const c = (Array.isArray(p.category) ? p.category[0] : p.category) || 'misc';
+    (byCat[c] ||= []).push(p.image);
+  }
+  for (const arr of Object.values(byCat)) {        // shuffle within each category
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = (Math.random() * (i + 1)) | 0;
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+  }
+  const cats = Object.keys(byCat).sort(() => Math.random() - 0.5);
+  const out = [];
+  let guard = 0;
+  while (out.length < n && guard++ < n * 4) {       // round-robin across categories
+    for (const c of cats) {
+      const img = byCat[c].pop();
+      if (img) out.push(img);
+      if (out.length >= n) break;
+    }
+    if (cats.every((c) => byCat[c].length === 0)) break;
+  }
+  return out.map(widthify);
+}
+
+// Free-text search → quiz answers. Maps a phrase like "black oversized tee for work"
+// onto the canonical quiz cards (gender, category, fit, colour, pattern, occasion…) so
+// the shopper can skip straight past the questions they've already decided. Returns an
+// `answers` object keyed by question id; unmatched dims stay unanswered (asked in-quiz).
+const SEARCH_SYNONYMS = {
+  tee: 'tshirt', tees: 'tshirt', 't-shirt': 'tshirt', 't-shirts': 'tshirt', tshirts: 'tshirt',
+  pant: 'trousers', pants: 'trousers', chino: 'trousers', chinos: 'trousers', trouser: 'trousers',
+  jean: 'jeans', denim: 'jeans', hoody: 'hoodie', hoodies: 'hoodie',
+  loose: 'oversized', oversize: 'oversized', baggy: 'baggy', relaxed: 'relaxed',
+  fitted: 'slim', slimfit: 'slim', skinny: 'skinny',
+  formals: 'formal', partywear: 'party', office: 'work', officewear: 'work',
+  plaid: 'check', checked: 'check', striped: 'stripe', printed: 'print', graphics: 'graphic',
+};
+function parseSearchQuery(query) {
+  const q = ' ' + query.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, ' ') + ' ';
+  const answers = {};
+
+  // gender — word-boundary regex so "men" doesn't fire inside "women"
+  const womenCat = /\b(dress|dresses|skirt|gown|saree|kurti|co-?ord)\b/.test(q);
+  const isWomen = womenCat || /\b(women|womens|woman|girl|girls|ladies|female|her)\b/.test(q);
+  const isMen = /\b(men|mens|man|boy|boys|male|guy|guys|his)\b/.test(q);
+  const gender = isWomen ? 'women' : (isMen ? 'men' : 'men'); // catalog is ~98% men → default men
+  const gCard = QUESTIONS[0].cards.find((c) => c.values.includes(gender));
+  if (gCard) answers.gender = { label: gCard.label, values: gCard.values };
+
+  // remaining dims: score each card by how much of the query its values/label/synonyms hit
+  const visible = QUESTIONS.filter((qq) => !qq.showIf || qq.showIf(answers));
+  for (const qq of visible) {
+    if (qq.id === 'gender' || answers[qq.id]) continue;
+    let best = null, score = 0;
+    for (const card of qq.cards) {
+      if (!card.values || !card.values.length) continue;
+      let s = 0;
+      for (const v of card.values) {
+        if (q.includes(' ' + v + ' ') || q.includes(v.replace(/_/g, ' '))) s += 3;
+      }
+      for (const w of card.label.toLowerCase().split(/[^a-z]+/)) {
+        if (w.length > 2 && q.includes(w)) s += 1;
+      }
+      for (const [syn, canon] of Object.entries(SEARCH_SYNONYMS)) {
+        if (q.includes(' ' + syn) && card.values.includes(canon)) s += 3;
+      }
+      if (s > score) { score = s; best = card; }
+    }
+    if (best) answers[qq.id] = { label: best.label, values: best.values };
+  }
+  return answers;
+}
+
 // ── Landing page ─────────────────────────────────────────────────────────
-function Landing({ onStart }) {
+const SHOWCASE_BRANDS = [
+  { key: 'snitch', name: 'SNITCH', cls: 'dz-brand--snitch' },
+  { key: 'bearhouse', name: 'Bear House', cls: 'dz-brand--bear' },
+  { key: 'bonkers', name: 'BONKERS', cls: 'dz-brand--bonkers' },
+];
+
+function Landing({ onStart, onSearch, catalog }) {
+  const [query, setQuery] = useState('');
+  const showcase = useMemo(() => pickShowcase(catalog, 18), [catalog]);
+  const collage = showcase.slice(0, 4);
+  const marquee = showcase.slice(4, 18);
+
   return (
     <div className="dz-landing">
-      {/* Hero */}
-      <section className="dz-hero-section">
-        <div className="dz-hero-badge">
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <path d="M7 1v12M1 7h12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-          30-second style quiz
+      {/* Hero — editorial split: copy + a staggered collage of real pieces */}
+      <section className="dz-hero">
+        <div className="dz-hero-copy">
+          <div className="dz-hero-badge">
+            <span className="dz-pulse" />
+            30-second style quiz
+          </div>
+          <h1 className="dz-hero-title">
+            Find clothes you'll <em>actually</em> wear.
+          </h1>
+          <p className="dz-hero-sub">
+            Skip the endless filters. Tap through a quick visual quiz and we'll narrow
+            thousands of pieces down to five worth your time.
+          </p>
+          <button className="dz-hero-cta" onClick={onStart}>
+            Take the quiz
+            <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+              <path d="M3 8.5h11M9.5 4l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          <div className="dz-or"><span>or already know what you want?</span></div>
+
+          <form
+            className="dz-search"
+            onSubmit={(e) => { e.preventDefault(); onSearch(query); }}
+          >
+            <svg className="dz-search-icon" width="18" height="18" viewBox="0 0 18 18" fill="none">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.6" />
+              <path d="M12.5 12.5L16 16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="black oversized tee, linen shirt for work…"
+              aria-label="Search what you want"
+            />
+            <button type="submit" className="dz-search-go" aria-label="Search">
+              <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+                <path d="M3 8.5h11M9.5 4l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </form>
+          <p className="dz-hero-trust">We'll pre-fill the quiz and pick up from there.</p>
         </div>
-        <h1 className="dz-hero-title">
-          Find clothes you'll actually wear.
-        </h1>
-        <p className="dz-hero-sub">
-          Answer a few quick questions about your style. We'll narrow thousands of products
-          down to five picks worth your time — no scrolling, no overwhelm.
-        </p>
-        <button className="dz-hero-cta" onClick={onStart}>
-          Take the quiz
-        </button>
+
+        <div className="dz-hero-collage" aria-hidden="true">
+          {[0, 1, 2, 3].map((i) => (
+            <div className={`dz-collage-tile dz-collage-tile--${i}`} key={i}>
+              {collage[i]
+                ? <img src={collage[i]} alt="" loading={i < 2 ? 'eager' : 'lazy'} />
+                : <div className="dz-collage-ph" />}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Lookbook marquee — proof there's a real, deep catalog behind the quiz */}
+      <section className="dz-marquee" aria-hidden="true">
+        <div className="dz-marquee-track">
+          {[...marquee, ...marquee].map((src, i) => (
+            <div className="dz-marquee-item" key={i}>
+              {src ? <img src={src} alt="" loading="lazy" /> : <div className="dz-collage-ph" />}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Brands — the labels stocked behind the quiz */}
+      <section className="dz-brands">
+        <span className="dz-brands-label">Curated from India's best D2C labels</span>
+        <div className="dz-brands-row">
+          {SHOWCASE_BRANDS.map((b) => (
+            <span key={b.key} className={`dz-brand-logo ${b.cls}`}>{b.name}</span>
+          ))}
+        </div>
       </section>
 
       {/* How it works */}
       <section className="dz-how" id="how">
-        <h2 className="dz-how-title">How it works</h2>
+        <span className="dz-how-eyebrow">How it works</span>
+        <h2 className="dz-how-title">Three taps from overwhelmed to outfitted.</h2>
         <div className="dz-how-grid">
           <div className="dz-how-step" style={{ animation: 'dzUp .5s 0.1s both' }}>
             <div className="dz-how-num">1</div>
@@ -131,26 +285,24 @@ function Landing({ onStart }) {
           <div className="dz-how-step" style={{ animation: 'dzUp .5s 0.3s both' }}>
             <div className="dz-how-num">3</div>
             <h3>Get your 5</h3>
-            <p>Five hand-picked products with direct links to buy. Rate them to sharpen future picks.</p>
+            <p>Five hand-picked pieces with direct links to buy. Rate them to sharpen future picks.</p>
           </div>
         </div>
       </section>
 
-      {/* Social proof / stats */}
-      <section className="dz-social">
+      {/* Closing CTA band */}
+      <section className="dz-closing">
+        <h2 className="dz-closing-title">Your edit is five taps away.</h2>
+        <button className="dz-hero-cta" onClick={onStart}>
+          Start the quiz
+          <svg width="17" height="17" viewBox="0 0 17 17" fill="none">
+            <path d="M3 8.5h11M9.5 4l4.5 4.5-4.5 4.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
         <div className="dz-social-stats">
-          <div className="dz-social-stat">
-            <span>12,000+</span>
-            <span>Products indexed</span>
-          </div>
-          <div className="dz-social-stat">
-            <span>30s</span>
-            <span>Average quiz time</span>
-          </div>
-          <div className="dz-social-stat">
-            <span>5</span>
-            <span>Picks, not 500</span>
-          </div>
+          <div className="dz-social-stat"><span>11,000+</span><span>Pieces indexed</span></div>
+          <div className="dz-social-stat"><span>30s</span><span>To your picks</span></div>
+          <div className="dz-social-stat"><span>5</span><span>Not 500</span></div>
         </div>
       </section>
     </div>
@@ -162,8 +314,7 @@ function Footer() {
   return (
     <footer className="dz-footer">
       <div className="dz-footer-logo">
-        <span className="dot" />
-        Dressit
+        <img src="/dressit-wordmark.png" alt="Dressit" className="dz-logo-img dz-logo-img--footer" />
       </div>
       <div className="dz-footer-links">
         <a href="#">About</a>
@@ -214,7 +365,7 @@ export default function App() {
     } catch {
       // backend down — fall back to client-side ranking
       if (catalog) {
-        const raw = rankPicks(catalog, resolvedAnswers, QUESTIONS, 5);
+        const raw = rankPicks(catalog, resolvedAnswers, QUESTIONS, MAX_PICKS);
         setPicks(raw.map((p) => ({
           id: p.link, title: p.title, brand: p.brand,
           price: '₹' + p.price, image: p.image, link: p.link,
@@ -299,6 +450,29 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
+  // Search entry: parse the phrase into answers, then drop the user at the first
+  // question they HAVEN'T answered. If the search already covered the core dims
+  // (everything up to the fork), skip straight to results.
+  function startFromSearch(rawQuery) {
+    setReactions({});
+    setVerdict(null);
+    const query = (rawQuery || '').trim();
+    if (!query) { setQi(0); setPhase('quiz'); return; }
+    const parsed = parseSearchQuery(query);
+    const nextVisible = QUESTIONS.filter((vq) => !vq.showIf || vq.showIf(parsed));
+    const firstUnanswered = nextVisible.findIndex((vq) => !parsed[vq.id]);
+    setAnswers(parsed);
+    track('quiz_search', { query, matched: Object.keys(parsed) });
+    if (firstUnanswered === -1 || firstUnanswered >= FORK_AFTER) {
+      fetchPicks(parsed);
+      setPhase('results');
+    } else {
+      setQi(firstUnanswered);
+      setPhase('quiz');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   // Map quizConfig question to the shape Screens.Quiz expects.
   // Card art is computed from the answers so far, so it shows the chosen item's variations.
   const q = visibleQs[qi];
@@ -327,6 +501,7 @@ export default function App() {
       options: cards.map((c) => ({
         key: c.label,
         label: c.label,
+        subtitle: c.subtitle,
         ph: c.emoji,
         image: cardImageFor(catalog, answers, q, c, used) || (CARD_IMAGES[q.id] || {})[c.label] || null,
         values: c.values,
@@ -339,7 +514,7 @@ export default function App() {
   if (phase === 'hero') {
     content = (
       <>
-        <Landing onStart={() => { setQi(0); setPhase('quiz'); }} />
+        <Landing catalog={catalog} onStart={() => { setQi(0); setPhase('quiz'); }} onSearch={startFromSearch} />
         <Footer />
       </>
     );
@@ -382,7 +557,7 @@ export default function App() {
       link: p.link,
     }));
     content = (
-      <div className="dz-quiz-shell" style={{ maxWidth: 700 }}>
+      <div className="dz-quiz-shell" style={{ maxWidth: 980 }}>
         {picksLoading ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12, color: 'var(--ink-soft)', animation: 'dzFadeIn .3s both' }}>
             <div style={{ fontFamily: 'var(--head)', fontSize: 22, color: 'var(--ink)' }}>Curating your picks\u2026</div>
@@ -429,7 +604,7 @@ export default function App() {
   }
 
   return (
-    <div style={{ ...theme, minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
+    <div className="dz-app" style={{ ...theme, minHeight: '100vh', backgroundColor: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
       <Navbar phase={phase} onLogoClick={restart} />
       {content}
 

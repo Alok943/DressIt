@@ -14,6 +14,29 @@ img { display: block; max-width: 100%; }
 button { font-family: inherit; }
 a { color: inherit; }
 
+/* ─── Paper-grain texture ──────────────────────────────────────────────────
+   Subtle fractal-noise overlay matching the logo's cream-paper backdrop. It's a
+   tileable SVG (feTurbulence → faint warm-ink specks on transparent) layered on
+   the app container's background, so it sits behind ALL content and never tints
+   product images. ~1KB, resolution-independent, no asset request. */
+.dz-app {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='180'%20height='180'%3E%3Cfilter%20id='n'%3E%3CfeTurbulence%20type='fractalNoise'%20baseFrequency='0.9'%20numOctaves='2'%20stitchTiles='stitch'/%3E%3CfeColorMatrix%20type='matrix'%20values='0%200%200%200%200.15%200%200%200%200%200.14%200%200%200%200%200.12%200%200%200%200.085%200'/%3E%3C/filter%3E%3Crect%20width='100%25'%20height='100%25'%20filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-attachment: fixed;       /* grain stays put while content scrolls */
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* fixed attachment can be heavy on mobile; let it scroll there */
+}
+@media (max-width: 767px) {
+  .dz-app { background-attachment: scroll; }
+}
+
+/* ─── Logo wordmark ───────────────────────────────────────────────────────── */
+.dz-logo-img {
+  height: 26px; width: auto; display: block;
+}
+.dz-logo-img--footer { height: 22px; opacity: 0.9; }
+
 /* ─── Animations ───────────────────────────────────────────────────────── */
 @keyframes dzUp {
   from { opacity: 0; transform: translateY(22px); }
@@ -85,95 +108,315 @@ a { color: inherit; }
 .dz-landing {
   flex: 1; display: flex; flex-direction: column;
 }
-.dz-hero-section {
-  padding: 48px 20px 56px;
-  display: flex; flex-direction: column; align-items: center; text-align: center;
+
+/* Hero — editorial split: copy on the left, staggered photo collage on the right.
+   Stacks to a single centred column on mobile with the collage below the copy. */
+.dz-hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 40px;
+  align-items: center;
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px 20px 8px;
 }
-@media (min-width: 768px) {
-  .dz-hero-section { padding: 80px 40px 72px; }
+@media (min-width: 900px) {
+  .dz-hero {
+    grid-template-columns: 1.05fr 0.95fr;
+    gap: 56px;
+    padding: 72px 40px 48px;
+  }
+}
+.dz-hero-copy {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  animation: dzUp .6s .05s both;
+}
+@media (min-width: 900px) {
+  .dz-hero-copy { align-items: flex-start; text-align: left; }
 }
 .dz-hero-badge {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12px; font-weight: 500; letter-spacing: 0.12em; text-transform: uppercase;
   color: var(--accent);
   background: rgba(90, 107, 82, 0.08);
-  padding: 6px 16px; border-radius: 9999px;
-  margin-bottom: 24px;
+  padding: 7px 16px; border-radius: 9999px;
+  margin-bottom: 22px;
+}
+.dz-pulse {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0;
+  box-shadow: 0 0 0 0 rgba(90,107,82,0.5);
+  animation: dzPulse 2s infinite;
+}
+@keyframes dzPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(90,107,82,0.45); }
+  70%  { box-shadow: 0 0 0 7px rgba(90,107,82,0); }
+  100% { box-shadow: 0 0 0 0 rgba(90,107,82,0); }
 }
 .dz-hero-title {
   font-family: var(--head);
   font-weight: 400;
-  font-size: clamp(36px, 8vw, 56px);
-  line-height: 1.05;
+  font-size: clamp(40px, 9vw, 68px);
+  line-height: 1.02;
   letter-spacing: -0.02em;
   color: var(--ink);
-  max-width: 600px;
+  max-width: 640px;
   text-wrap: balance;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
+}
+.dz-hero-title em {
+  font-style: italic;
+  color: var(--accent);
 }
 .dz-hero-sub {
   font-size: clamp(15px, 3.5vw, 18px);
   line-height: 1.6;
   color: var(--ink-soft);
-  max-width: 480px;
-  margin-bottom: 36px;
+  max-width: 460px;
+  margin-bottom: 32px;
 }
 .dz-hero-cta {
+  display: inline-flex; align-items: center; gap: 9px;
   font-size: 17px; font-weight: 500;
   color: var(--accent-ink);
   background: var(--accent);
   border: none; cursor: pointer;
-  padding: 18px 40px;
+  padding: 17px 34px;
   border-radius: 9999px;
   transition: box-shadow 0.2s, transform 0.2s;
   box-shadow: 0 4px 16px -6px rgba(40,35,30,0.35);
 }
+.dz-hero-cta svg { transition: transform 0.2s; }
 .dz-hero-cta:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 30px -8px rgba(40,35,30,0.45);
 }
+.dz-hero-cta:hover svg { transform: translateX(3px); }
+.dz-hero-trust {
+  margin-top: 16px;
+  font-size: 13px; letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+
+/* "or already know what you want?" divider */
+.dz-or {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; max-width: 420px;
+  margin: 22px 0 14px;
+  color: var(--ink-soft); font-size: 12.5px; letter-spacing: 0.02em;
+}
+.dz-or::before, .dz-or::after {
+  content: ''; flex: 1; height: 1px; background: var(--line);
+}
+
+/* Search bar — alternate entry into the quiz */
+.dz-search {
+  display: flex; align-items: center; gap: 8px;
+  width: 100%; max-width: 420px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  padding: 6px 6px 6px 16px;
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+.dz-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(90,107,82,0.12);
+}
+.dz-search-icon { color: var(--ink-soft); flex-shrink: 0; }
+.dz-search input {
+  flex: 1; min-width: 0;
+  border: none; outline: none; background: transparent;
+  font-family: inherit; font-size: 15px; color: var(--ink);
+  padding: 9px 0;
+}
+.dz-search input::placeholder { color: rgba(38,35,31,0.42); }
+.dz-search-go {
+  flex-shrink: 0;
+  width: 40px; height: 40px; border-radius: 50%;
+  border: none; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.18s, box-shadow 0.18s;
+}
+.dz-search-go:hover { transform: scale(1.06); box-shadow: 0 6px 16px -6px rgba(40,35,30,0.45); }
+
+/* Brand lockups — labels stocked behind the quiz */
+.dz-brands {
+  text-align: center;
+  padding: 40px 20px 8px;
+}
+.dz-brands-label {
+  display: block;
+  font-size: 12px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 20px;
+}
+.dz-brands-row {
+  display: flex; align-items: center; justify-content: center;
+  flex-wrap: wrap; gap: 18px 40px;
+}
+.dz-brand-logo {
+  color: var(--ink);
+  opacity: 0.62;
+  transition: opacity 0.2s;
+  line-height: 1;
+}
+.dz-brands-row:hover .dz-brand-logo { opacity: 0.34; }
+.dz-brand-logo:hover { opacity: 1 !important; }
+.dz-brand--snitch {
+  font-family: 'Inter', sans-serif; font-weight: 600;
+  font-size: 26px; letter-spacing: 0.22em; text-transform: uppercase;
+}
+.dz-brand--bear {
+  font-family: var(--head); font-weight: 400;
+  font-size: 30px; letter-spacing: 0.01em;
+}
+.dz-brand--bonkers {
+  font-family: 'Inter', sans-serif; font-weight: 800;
+  font-size: 24px; letter-spacing: 0.04em; text-transform: uppercase;
+}
+
+/* Hero collage — 2×2 staggered grid of real product shots */
+.dz-hero-collage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  margin-bottom: 26px;            /* room for the offset right-column tiles */
+  animation: dzFadeIn .8s .15s both;
+}
+.dz-collage-tile {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  background: linear-gradient(150deg, #EDE6DA 0%, #DCD2C2 100%);
+  box-shadow: 0 18px 40px -22px rgba(40,35,30,0.5);
+}
+.dz-collage-tile img {
+  width: 100%; height: 100%; object-fit: cover;
+  object-position: center 22%;
+}
+/* offset the right column down for an editorial, unaligned feel (desktop only) */
+.dz-collage-tile--1, .dz-collage-tile--3 { transform: translateY(26px); }
+.dz-collage-ph {
+  width: 100%; height: 100%;
+  background-image: repeating-linear-gradient(135deg, rgba(255,255,255,0.45) 0 1px, transparent 1px 12px);
+}
+
+/* Mobile: lay the showcase out as a single horizontal swipe row, not a stacked
+   2×2 block — keeps the hero compact and the images side-by-side. */
+@media (max-width: 899px) {
+  .dz-hero-collage {
+    display: flex;
+    gap: 12px;
+    max-width: none;
+    margin-bottom: 4px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    padding: 2px 0 8px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .dz-hero-collage::-webkit-scrollbar { display: none; }
+  .dz-collage-tile {
+    flex: 0 0 46%;
+    scroll-snap-align: center;
+  }
+  .dz-collage-tile--1, .dz-collage-tile--3 { transform: none; } /* no vertical offset on mobile */
+}
+
+/* Lookbook marquee — infinite horizontal scroll of catalog shots */
+.dz-marquee {
+  margin-top: 44px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background: rgba(38,35,31,0.02);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+}
+@media (min-width: 900px) { .dz-marquee { margin-top: 8px; } }
+.dz-marquee-track {
+  display: flex; gap: 14px; width: max-content;
+  animation: dzMarquee 48s linear infinite;
+}
+.dz-marquee:hover .dz-marquee-track { animation-play-state: paused; }
+@keyframes dzMarquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.dz-marquee-item {
+  width: 112px; aspect-ratio: 3 / 4; flex-shrink: 0;
+  border-radius: 10px; overflow: hidden;
+  background: linear-gradient(150deg, #EDE6DA 0%, #DCD2C2 100%);
+}
+.dz-marquee-item img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; }
+@media (prefers-reduced-motion: reduce) {
+  .dz-marquee-track { animation: none; }
+}
 
 /* How it works */
 .dz-how {
-  background: rgba(38, 35, 31, 0.025);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-  padding: 56px 20px;
+  padding: 64px 20px 56px;
+  max-width: 960px; width: 100%; margin: 0 auto;
 }
-@media (min-width: 768px) { .dz-how { padding: 72px 40px; } }
+@media (min-width: 768px) { .dz-how { padding: 88px 40px 72px; } }
+.dz-how-eyebrow {
+  display: block; text-align: center;
+  font-size: 12px; font-weight: 500; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
 .dz-how-title {
   font-family: var(--head);
   font-weight: 400;
-  font-size: clamp(24px, 5vw, 32px);
+  font-size: clamp(26px, 5vw, 38px);
+  line-height: 1.1;
   color: var(--ink);
   text-align: center;
-  margin-bottom: 40px;
+  text-wrap: balance;
+  max-width: 560px;
+  margin: 0 auto 48px;
 }
 .dz-how-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 28px;
-  max-width: 800px;
+  gap: 12px;
+  max-width: 840px;
   margin: 0 auto;
 }
-@media (min-width: 640px) { .dz-how-grid { grid-template-columns: repeat(3, 1fr); gap: 24px; } }
+@media (min-width: 640px) { .dz-how-grid { grid-template-columns: repeat(3, 1fr); gap: 20px; } }
 .dz-how-step {
   text-align: center;
-  padding: 24px 16px;
+  padding: 30px 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.dz-how-step:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 16px 34px -20px rgba(40,35,30,0.4);
 }
 .dz-how-num {
-  width: 40px; height: 40px;
+  width: 42px; height: 42px;
   border-radius: 50%;
   background: var(--accent);
   color: var(--accent-ink);
   display: flex; align-items: center; justify-content: center;
-  font-size: 16px; font-weight: 600;
-  margin: 0 auto 16px;
+  font-family: var(--head); font-size: 19px; font-weight: 400;
+  margin: 0 auto 18px;
 }
 .dz-how-step h3 {
   font-family: var(--head);
   font-weight: 400;
-  font-size: 20px;
+  font-size: 21px;
   color: var(--ink);
   margin-bottom: 8px;
 }
@@ -183,18 +426,32 @@ a { color: inherit; }
   color: var(--ink-soft);
 }
 
-/* Social proof */
-.dz-social {
-  padding: 48px 20px;
+/* Closing CTA band */
+.dz-closing {
   text-align: center;
+  padding: 64px 20px 80px;
+  border-top: 1px solid var(--line);
+  background: rgba(38,35,31,0.025);
 }
-@media (min-width: 768px) { .dz-social { padding: 64px 40px; } }
+@media (min-width: 768px) { .dz-closing { padding: 80px 40px 96px; } }
+.dz-closing-title {
+  font-family: var(--head);
+  font-weight: 400;
+  font-size: clamp(28px, 6vw, 44px);
+  line-height: 1.06;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-wrap: balance;
+  max-width: 540px;
+  margin: 0 auto 28px;
+}
 .dz-social-stats {
-  display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;
+  display: flex; justify-content: center; gap: 36px; flex-wrap: wrap;
+  margin-top: 44px;
 }
 .dz-social-stat span:first-child {
   font-family: var(--head);
-  font-size: clamp(28px, 6vw, 36px);
+  font-size: clamp(28px, 6vw, 38px);
   color: var(--ink);
   display: block;
 }
@@ -277,17 +534,17 @@ a { color: inherit; }
 }
 .dz-qcard:active .dz-qcard-img { transform: scale(1.02); }
 
-/* Results grid */
+/* Results grid — scales to the full match set (2 up on tablet, 3 up on desktop) */
 .dz-results-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 36px;
+  gap: 32px 24px;
 }
-@media (min-width: 640px) {
-  .dz-results-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 28px;
-  }
+@media (min-width: 560px) {
+  .dz-results-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (min-width: 900px) {
+  .dz-results-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 /* ─── Footer ───────────────────────────────────────────────────────────── */
