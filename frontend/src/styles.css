@@ -258,17 +258,16 @@ a { color: inherit; }
   flex-wrap: wrap; gap: 18px 40px;
 }
 .dz-brand-logo {
-  /* uniform monochrome treatment: white/colored brand marks (Bonkers white,
-     Offduty yellow) all read as a dark silhouette on the cream bg, then reveal
-     true color on hover. */
-  height: 26px; width: auto; max-width: 130px;
+  /* Uniform monochrome treatment so mixed-colour source marks (Bonkers is white,
+     Offduty yellow, Snitch black) all read consistently as a dark silhouette on
+     the cream bg — always visible, darkens on hover. */
+  height: 30px; width: auto; max-width: 150px;
   object-fit: contain;
   filter: brightness(0);
-  opacity: 0.55;
-  transition: opacity 0.2s, filter 0.2s;
+  opacity: 0.72;
+  transition: opacity 0.2s;
 }
-.dz-brands-row:hover .dz-brand-logo { opacity: 0.3; }
-.dz-brand-logo:hover { opacity: 1 !important; filter: none; }
+.dz-brand-logo:hover { opacity: 1; }
 
 /* Hero collage — 2×2 staggered grid of real product shots */
 .dz-hero-collage {

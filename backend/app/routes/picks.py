@@ -6,10 +6,10 @@ from ..schemas import PicksRequest, PicksResponse, PickedProduct
 
 router = APIRouter()
 
-# Show the full match set, not a hard 5. Capped so a broad query can't try to
-# render hundreds of image cards — surfaced to the user as "top N of <count>".
-# Preference-based narrowing (LLM re-rank) is the future lever, not a fixed cut.
-MAX_PICKS = 60
+# Return the full match set, not a hard 5. The frontend reveals these a batch at a
+# time ("Show more"), so this is just an upper bound on payload size, not what's
+# rendered at once. Keep in sync with MAX_PICKS in frontend/src/App.jsx.
+MAX_PICKS = 300
 
 
 @router.post("/picks", response_model=PicksResponse)

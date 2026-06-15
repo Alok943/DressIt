@@ -192,30 +192,30 @@ function FilterChips({ label, options, value, onChange }) {
 
 // ── Results ─────────────────────────────────────────────────────────────
 function Results({ products, reactions, onReact, headline, verdict, onVerdict, onProfile, onBack, onRefine, refineCount, radius,
-  brandOpts = [], colorOpts = [], brandFilter = 'all', colorFilter = 'all', onBrandFilter, onColorFilter }) {
-  const shown = products.length;
-  // total = the live counter the shopper just watched (hard survivors). `shown` may be
-  // fewer: deduped near-identical titles, or capped by MAX_PICKS on a broad query.
+  brandOpts = [], colorOpts = [], brandFilter = 'all', colorFilter = 'all', onBrandFilter, onColorFilter,
+  filteredTotal, hasMore, onShowMore }) {
+  const shown = products.length;                 // currently rendered (grows with "Show more")
+  // total survivors the shopper watched the counter land on
   const total = typeof refineCount === 'number' && refineCount >= shown ? refineCount : shown;
+  const ft = typeof filteredTotal === 'number' ? filteredTotal : shown; // loadable after filters
   const filtered = brandFilter !== 'all' || colorFilter !== 'all';
   const empty = shown === 0;
-  const capped = shown < total;
   const safeHeadline = empty
     ? (filtered ? 'No matches for this combo.' : 'Nothing matched everything.')
-    : total === 1
-      ? 'One piece matches your style.'
-      : `${total.toLocaleString('en-US')} pieces match your style.`;
+    : filtered
+      ? `${ft.toLocaleString('en-US')} ${ft === 1 ? 'piece matches' : 'pieces match'} these filters.`
+      : total === 1
+        ? 'One piece matches your style.'
+        : `${total.toLocaleString('en-US')} pieces match your style.`;
   const sub = empty
     ? (filtered
         ? 'Nothing here for those filters — clear one to widen the net.'
         : 'Your picks were a touch too specific. Tap back and loosen one — colour or fabric usually opens things up.')
-    : filtered
-      ? `Showing ${shown} ${shown === 1 ? 'piece' : 'pieces'} for your filters. A 👍 or 👎 sharpens what comes next.`
-      : capped
-        ? `Showing the top ${shown}. Filter by brand or colour below, or keep refining — a 👍 or 👎 sharpens what comes next.`
-        : shown === 1
-          ? 'Just one that genuinely fits. A 👍 or 👎 sharpens what comes next.'
-          : `Every one that matches your picks. A 👍 or 👎 sharpens what comes next.`;
+    : shown < ft
+      ? `Showing ${shown} of ${ft.toLocaleString('en-US')}${filtered ? ' for your filters' : ''} — tap Show more for the rest. A 👍 or 👎 sharpens what comes next.`
+      : shown === 1
+        ? 'Just one that genuinely fits. A 👍 or 👎 sharpens what comes next.'
+        : `Showing all ${shown}${filtered ? ' for your filters' : ''}. A 👍 or 👎 sharpens what comes next.`;
   return (
     <Screen scroll animKey="results">
       <TopBar onBack={onBack} label="your edit" />
@@ -267,6 +267,12 @@ function Results({ products, reactions, onReact, headline, verdict, onVerdict, o
           />
         ))}
       </div>
+
+      {hasMore && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: 30 }}>
+          <GhostButton onClick={onShowMore} style={{ maxWidth: 280 }}>Show more</GhostButton>
+        </div>
+      )}
 
       {/* Verdict — only when there are picks to judge */}
       {!empty && (

@@ -8,9 +8,11 @@ import { CARD_IMAGES } from './cardImages.js';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
-// Show the full match set (not a hard 5), capped for performance. Keep in sync with
-// MAX_PICKS in backend/app/routes/picks.py.
-const MAX_PICKS = 60;
+// Upper bound on the ranked set we hold (not what's rendered — the grid reveals a
+// batch at a time via "Show more"). Keep in sync with MAX_PICKS in
+// backend/app/routes/picks.py.
+const MAX_PICKS = 300;
+const RESULTS_BATCH = 24; // cards revealed per "Show more" / initial render
 
 // Display names for the brand filter chips (catalog stores lowercase keys).
 const BRAND_LABELS = {
@@ -365,6 +367,7 @@ export default function App() {
   const [picksLoading, setPicksLoading] = useState(false);
   const [brandFilter, setBrandFilter] = useState('all');
   const [colorFilter, setColorFilter] = useState('all');
+  const [visibleCount, setVisibleCount] = useState(RESULTS_BATCH);
   const locked = useRef(false);
   const sessionId = useRef(Math.random().toString(36).slice(2));
 
@@ -379,18 +382,25 @@ export default function App() {
     setPicks(null);
     setBrandFilter('all');
     setColorFilter('all');
+    setVisibleCount(RESULTS_BATCH);
     try {
+      // bail fast if the backend is asleep (Render free tier cold-starts ~30s) —
+      // the client-side ranking below is identical, so don't make the user wait
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 4000);
       const res = await fetch(`${API_BASE}/api/picks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers: resolvedAnswers }),
+        signal: ctrl.signal,
       });
+      clearTimeout(timer);
       if (!res.ok) throw new Error('picks failed');
       const data = await res.json();
-      preloadImages((data.picks || []).map((p) => widthify(p.image, 600)));
+      preloadImages((data.picks || []).slice(0, RESULTS_BATCH).map((p) => widthify(p.image, 600)));
       setPicks(data.picks);
     } catch {
-      // backend down — fall back to client-side ranking
+      // backend down/slow — fall back to client-side ranking (same logic)
       if (catalog) {
         const raw = rankPicks(catalog, resolvedAnswers, QUESTIONS, MAX_PICKS);
         const mapped = raw.map((p) => ({
@@ -398,7 +408,7 @@ export default function App() {
           price: '₹' + p.price, image: p.image, link: p.link,
           why: 'Hand-picked match based on your preferences.',
         }));
-        preloadImages(mapped.map((p) => widthify(p.image, 600)));
+        preloadImages(mapped.slice(0, RESULTS_BATCH).map((p) => widthify(p.image, 600)));
         setPicks(mapped);
       }
     } finally {
@@ -617,7 +627,7 @@ export default function App() {
       (brandFilter === 'all' || p.brand === brandFilter) &&
       (colorFilter === 'all' || inBucket(p, colorFilter)),
     );
-    const mappedPicks = filtered.map((p) => ({
+    const mappedAll = filtered.map((p) => ({
       id: p.link || p.id,
       name: p.title || p.name,
       price: p.price,
@@ -626,6 +636,15 @@ export default function App() {
       image: widthify(p.image, 600),
       link: p.link,
     }));
+    // progressive reveal: only render `visibleCount` cards; "Show more" reveals the
+    // next batch and we preload that batch's images in the background first
+    const mappedPicks = mappedAll.slice(0, visibleCount);
+    const hasMore = mappedAll.length > visibleCount;
+    const showMore = () => {
+      preloadImages(mappedAll.slice(visibleCount, visibleCount + RESULTS_BATCH).map((p) => p.image));
+      setVisibleCount((c) => c + RESULTS_BATCH);
+    };
+    const resetCount = () => setVisibleCount(RESULTS_BATCH);
     content = (
       <div className="dz-quiz-shell" style={{ maxWidth: 980 }}>
         {picksLoading ? (
@@ -655,8 +674,11 @@ export default function App() {
             colorOpts={colorOpts}
             brandFilter={brandFilter}
             colorFilter={colorFilter}
-            onBrandFilter={setBrandFilter}
-            onColorFilter={setColorFilter}
+            onBrandFilter={(v) => { setBrandFilter(v); resetCount(); }}
+            onColorFilter={(v) => { setColorFilter(v); resetCount(); }}
+            filteredTotal={mappedAll.length}
+            hasMore={hasMore}
+            onShowMore={showMore}
           />
         )}
         <Footer />
