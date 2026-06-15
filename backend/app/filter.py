@@ -1,5 +1,27 @@
 # Python port of frontend/src/filter.js — kept intentionally identical in logic.
 
+import re
+
+# Collapse colour variants of the same product into one pick — keep identical to
+# familyKey in filter.js. Snitch links carry a base SKU shared across colours
+# (…-4mss4668-03/<variant>/buy); other brands fall back to title minus colour words.
+COLOR_WORDS = {
+    "black", "white", "grey", "gray", "beige", "cream", "olive", "brown", "khaki",
+    "maroon", "mustard", "blue", "navy", "teal", "red", "pink", "orange", "purple",
+    "lavender", "yellow", "green", "peach", "multi", "wine", "mauve", "charcoal",
+}
+
+
+def family_key(p: dict) -> str:
+    link = p.get("link", "") or ""
+    m = re.search(r"-([a-z0-9]+)-\d+/\d+/buy/?$", link, re.I)
+    if m:
+        return (p.get("brand", "") or "") + ":" + m.group(1).lower()
+    t = re.sub(r"[^a-z0-9 ]", " ", (p.get("title", "") or "").lower())
+    toks = [w for w in t.split() if w and w not in COLOR_WORDS and not w.isdigit()]
+    return (p.get("brand", "") or "") + ":" + " ".join(toks)
+
+
 QUESTIONS = [
     {"id": "gender",   "dim": "gender"},
     {"id": "category", "dim": "category"},
@@ -56,7 +78,7 @@ def rank_picks(catalog: list[dict], answers: dict, n: int = 5) -> tuple[list[dic
     seen: set[str] = set()
     top: list[dict] = []
     for _, p in scored:
-        key = p.get("title", "").lower().strip()
+        key = family_key(p)
         if key in seen:
             continue
         seen.add(key)

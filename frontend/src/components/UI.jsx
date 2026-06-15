@@ -73,74 +73,75 @@ function QuizCard({ option, index, selected, dimmed, onPick, fill }) {
       onClick={onPick}
       className="dz-qcard"
       style={{
-        position: 'relative', border: 'none', padding: 0, cursor: 'pointer',
+        display: 'flex', flexDirection: 'column',
+        border: 'none', padding: 0, cursor: 'pointer',
         borderRadius: 'var(--radius)', overflow: 'hidden', textAlign: 'left',
-        background: hues[index % 4], width: '100%',
-        aspectRatio: fill ? '4 / 5' : '3 / 4',
+        background: '#fff', width: '100%',
+        aspectRatio: fill ? '3 / 4' : '3 / 4',
         outline: selected ? '2.5px solid var(--accent)' : '1px solid var(--line)',
         outlineOffset: selected ? '2px' : '-1px',
-        opacity: dimmed ? 0.32 : 1,
+        opacity: dimmed ? 0.4 : 1,
         transform: selected ? 'scale(0.975)' : 'none',
         transition: 'opacity .35s ease, transform .35s cubic-bezier(.2,.8,.2,1), outline-color .2s',
         boxShadow: selected ? '0 8px 24px -10px rgba(40,35,30,0.35)' : 'none',
         fontFamily: 'inherit',
       }}>
-      {hasImg ? (
-        <img
-          className="dz-qcard-img"
-          src={option.image}
-          alt={option.label}
-          loading="lazy"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 28%' }}
-        />
-      ) : (
-        <>
-          {/* diagonal-hatch texture so empty art reads as "image goes here" */}
-          <div style={{
-            position: 'absolute', inset: 0, opacity: 0.5,
-            backgroundImage: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.5) 0 1px, transparent 1px 11px)',
-          }} />
-          {/* ph hint, centered, monospace */}
-          <div style={{
-            position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
-            justifyContent: 'center', padding: 14,
-          }}>
-            <span style={{
-              fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-              fontSize: 10.5, letterSpacing: '0.04em', color: 'rgba(40,35,30,0.42)',
-              textAlign: 'center',
-            }}>{option.ph}</span>
-          </div>
-        </>
-      )}
-      {/* scrim + label */}
-      <div style={{
-        position: 'absolute', left: 0, right: 0, bottom: 0, padding: '34px 13px 13px',
-        background: 'linear-gradient(to top, rgba(28,25,21,0.82) 0%, rgba(28,25,21,0.48) 42%, transparent 100%)',
-        display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8,
+      {/* media */}
+      <div className="dz-qcard-media" style={{
+        position: 'relative', flex: 1, minHeight: 0,
+        background: hues[index % 4],
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0 }}>
-          <span style={{
-            fontFamily: 'var(--head)', color: '#FBF9F5', fontSize: 18.5, lineHeight: 1.08,
-            letterSpacing: '0.005em', textShadow: '0 1px 8px rgba(20,17,14,0.45)',
+        {hasImg ? (
+          <img
+            className="dz-qcard-img"
+            src={option.image}
+            alt={option.label}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center 22%' }}
+          />
+        ) : (
+          <>
+            <div style={{
+              position: 'absolute', inset: 0, opacity: 0.5,
+              backgroundImage: 'repeating-linear-gradient(135deg, rgba(255,255,255,0.5) 0 1px, transparent 1px 11px)',
+            }} />
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', fontSize: 30,
+            }}>{option.ph}</div>
+          </>
+        )}
+      </div>
+
+      {/* label + subtitle, below the image */}
+      <div className="dz-qcard-text" style={{
+        flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 8, padding: '9px 11px 10px',
+        borderTop: '1px solid var(--line)',
+        background: selected ? 'rgba(90,107,82,0.07)' : '#fff',
+        transition: 'background .2s',
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
+          <span className="dz-qcard-label" style={{
+            fontFamily: 'var(--head)', color: 'var(--ink)', lineHeight: 1.12,
+            fontSize: 'clamp(14px, 3.6vw, 16.5px)', letterSpacing: '0.005em',
           }}>{option.label}</span>
           {option.subtitle && (
-            <span style={{
-              fontSize: 11, color: 'rgba(251,249,245,0.82)', letterSpacing: '0.01em',
-              lineHeight: 1.32, whiteSpace: 'normal', textShadow: '0 1px 6px rgba(20,17,14,0.5)',
+            <span className="dz-qcard-sub" style={{
+              fontSize: 'clamp(10px, 2.7vw, 11.5px)', color: 'var(--ink-soft)',
+              lineHeight: 1.28,
             }}>{option.subtitle}</span>
           )}
         </div>
         <span style={{
-          width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-          border: selected ? 'none' : '1.5px solid rgba(251,249,245,0.7)',
+          width: 19, height: 19, borderRadius: '50%', flexShrink: 0,
+          border: selected ? 'none' : '1.5px solid var(--line)',
           background: selected ? 'var(--accent)' : 'transparent',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          transition: 'background .2s', marginBottom: 1,
+          transition: 'background .2s',
         }}>
           {selected && (
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M2.5 6.2l2.3 2.3 4.7-5" stroke="#fff" strokeWidth="1.8"
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+              <path d="M2.5 6.2l2.3 2.3 4.7-5" stroke="#fff" strokeWidth="1.9"
                 strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           )}

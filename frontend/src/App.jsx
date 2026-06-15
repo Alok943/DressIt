@@ -15,9 +15,21 @@ const MAX_PICKS = 60;
 // Dynamic card art: show the item the user is actually shopping for, in this card's variation.
 // Once "Polos" is chosen, the occasion/fit/colour cards each show a *polo* (casual polo, navy polo…),
 // not a generic shirt. Relaxation ladder: gender+category+attribute -> gender+attribute -> attribute.
-function widthify(url) {
+function widthify(url, w = 400) {
   if (!url) return url;
-  return /[?&]width=/.test(url) ? url : url + (url.includes('?') ? '&' : '?') + 'width=400';
+  return /[?&]width=/.test(url) ? url : url + (url.includes('?') ? '&' : '?') + 'width=' + w;
+}
+
+// Warm the browser cache for image URLs so they don't pop in when rendered.
+// De-duped across the session so we never re-request the same URL.
+const _preloaded = new Set();
+function preloadImages(urls) {
+  for (const u of urls) {
+    if (!u || _preloaded.has(u)) continue;
+    _preloaded.add(u);
+    const img = new Image();
+    img.src = u;
+  }
 }
 function cardImageFor(catalog, answers, q, card, used) {
   if (!catalog || !card.values || card.values.length === 0) return null; // skip/“no preference” cards
@@ -175,9 +187,12 @@ function parseSearchQuery(query) {
 
 // ── Landing page ─────────────────────────────────────────────────────────
 const SHOWCASE_BRANDS = [
-  { key: 'snitch', name: 'SNITCH', cls: 'dz-brand--snitch' },
-  { key: 'bearhouse', name: 'Bear House', cls: 'dz-brand--bear' },
-  { key: 'bonkers', name: 'BONKERS', cls: 'dz-brand--bonkers' },
+  { key: 'snitch', name: 'Snitch', logo: '/logos/snitch.webp' },
+  { key: 'bearhouse', name: 'Bear House', logo: '/logos/bearhouse.svg' },
+  { key: 'bonkers', name: 'Bonkers Corner', logo: '/logos/bonkers.webp' },
+  { key: 'powerlook', name: 'Powerlook', logo: '/logos/powerlook.avif' },
+  { key: 'vastrado', name: 'Vastrado', logo: '/logos/vastrado.avif' },
+  { key: 'offduty', name: 'Offduty', logo: '/logos/offduty.avif' },
 ];
 
 function Landing({ onStart, onSearch, catalog }) {
@@ -262,7 +277,7 @@ function Landing({ onStart, onSearch, catalog }) {
         <span className="dz-brands-label">Curated from India's best D2C labels</span>
         <div className="dz-brands-row">
           {SHOWCASE_BRANDS.map((b) => (
-            <span key={b.key} className={`dz-brand-logo ${b.cls}`}>{b.name}</span>
+            <img key={b.key} className="dz-brand-logo" src={b.logo} alt={b.name} title={b.name} loading="lazy" />
           ))}
         </div>
       </section>
@@ -361,16 +376,19 @@ export default function App() {
       });
       if (!res.ok) throw new Error('picks failed');
       const data = await res.json();
+      preloadImages((data.picks || []).map((p) => widthify(p.image, 600)));
       setPicks(data.picks);
     } catch {
       // backend down — fall back to client-side ranking
       if (catalog) {
         const raw = rankPicks(catalog, resolvedAnswers, QUESTIONS, MAX_PICKS);
-        setPicks(raw.map((p) => ({
+        const mapped = raw.map((p) => ({
           id: p.link, title: p.title, brand: p.brand,
           price: '₹' + p.price, image: p.image, link: p.link,
           why: 'Hand-picked match based on your preferences.',
-        })));
+        }));
+        preloadImages(mapped.map((p) => widthify(p.image, 600)));
+        setPicks(mapped);
       }
     } finally {
       setPicksLoading(false);
@@ -416,6 +434,17 @@ export default function App() {
     const q = visibleQs[qi];
     const nextAnswers = { ...answers, [q.id]: { label: opt.label, values: opt.values } };
     setAnswers(nextAnswers);
+    // preload the next screen's card art (and, near the fork, the result images)
+    // so nothing pops in during the transition
+    const nextVisible = QUESTIONS.filter((vq) => !vq.showIf || vq.showIf(nextAnswers));
+    const nq = nextVisible[qi + 1];
+    if (nq && !nq.soft && catalog) {
+      const used = new Set();
+      preloadImages((nq.cards || []).map((c) => cardImageFor(catalog, nextAnswers, nq, c, used)).filter(Boolean));
+    }
+    if ((qi === FORK_AFTER - 1 || qi >= visibleQs.length - 1) && catalog) {
+      preloadImages(rankPicks(catalog, nextAnswers, QUESTIONS, 12).map((p) => widthify(p.image, 600)));
+    }
     setTimeout(() => {
       const isLast = qi >= visibleQs.length - 1;
       // After the core questions (FORK_AFTER), show results immediately. Remaining
@@ -553,7 +582,7 @@ export default function App() {
       price: p.price,
       brand: p.brand,
       why: p.why || 'Hand-picked match based on your preferences.',
-      image: p.image,
+      image: widthify(p.image, 600),
       link: p.link,
     }));
     content = (
