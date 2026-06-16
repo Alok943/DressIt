@@ -89,13 +89,13 @@ def _state_of(obj):
 
 
 def _responses_of(obj):
-    # defensive: the inline outputs have lived under a few shapes across versions
-    for path in (("response", "inlinedResponses"), ("response", "inlined_responses")):
-        cur = obj
-        for k in path:
-            cur = cur.get(k, {}) if isinstance(cur, dict) else {}
-        if isinstance(cur, list):
-            return cur
+    # actual shape: {response|metadata.output}.inlinedResponses.inlinedResponses[]
+    for root in (obj.get("response", {}), (obj.get("metadata", {}) or {}).get("output", {})):
+        ir = root.get("inlinedResponses") if isinstance(root, dict) else None
+        if isinstance(ir, dict):
+            ir = ir.get("inlinedResponses")
+        if isinstance(ir, list):
+            return ir
     return []
 
 
@@ -113,7 +113,7 @@ def poll(name, every=10, timeout=3600):
             time.sleep(every); continue
         state = _state_of(obj)
         if obj.get("done") or "SUCCEEDED" in state:
-            return _responses_of(obj)
+            return obj
         if "FAILED" in state or "CANCELLED" in state or "EXPIRED" in state:
             raise RuntimeError(f"batch {name} ended in {state}: {json.dumps(obj)[:300]}")
         if time.time() - t0 > timeout:
@@ -201,16 +201,38 @@ def main():
         reqs = [r[2] for r in ck]
         name = submit_chunk(reqs, f"{brand}-{ci}")
         print(f"  job {ci+1}/{len(chunks)} submitted ({name}); polling...", flush=True)
-        responses = poll(name)
-        # map by submission order (inline responses come back in request order)
-        got = 0
-        for (p, link, _), resp in zip(ck, responses):
+        obj = poll(name)
+        responses = _responses_of(obj)
+        if not responses:
+            # shape didn't match — show the actual structure so we can fix the path
+            def shape(o, d=0):
+                if isinstance(o, dict):
+                    return {k: shape(v, d + 1) for k, v in list(o.items())[:12]} if d < 4 else "...{}"
+                if isinstance(o, list):
+                    return [shape(o[0], d + 1), f"...x{len(o)}"] if o else []
+                return type(o).__name__
+            print("  !! no responses parsed — raw batch object shape:", flush=True)
+            print(json.dumps(shape(obj), indent=1)[:1800], flush=True)
+            print("  --- snippet ---", flush=True)
+            print(json.dumps(obj)[:1500], flush=True)
+        # map by echoed metadata.key (= product link) — robust to any reordering
+        by_key = {}
+        for resp in responses:
+            key = (resp.get("metadata") or {}).get("key")
+            cands = (resp.get("response") or {}).get("candidates") or []
+            if not key or not cands:
+                continue
             try:
-                cand = (resp.get("response", resp).get("candidates") or [])[0]
-                text = cand["content"]["parts"][0]["text"]
-                attrs = parse_attrs(text)
-            except Exception as e:
-                print(f"    parse fail {str(e)[:40]} <<{link}", flush=True)
+                parts = cands[0]["content"]["parts"]
+                text = next(pt["text"] for pt in parts if "text" in pt)
+                by_key[key] = parse_attrs(text)
+            except Exception:
+                pass
+        got = 0
+        for (p, link, _) in ck:
+            attrs = by_key.get(link)
+            if attrs is None:
+                print(f"    parse fail <<{link}", flush=True)
                 continue
             try:
                 price = int(float(p.get("variants", [{}])[0].get("price")))
