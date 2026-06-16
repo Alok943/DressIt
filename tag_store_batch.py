@@ -19,7 +19,7 @@ NOTE: the per-item tag_store.py is simpler and already works; batch mainly saves
 cost at scale. SMOKE-TEST with --limit 20 --chunk 20 before a full run, and paste
 any API error — batch response field names can shift between API versions.
 """
-import json, sys, os, ssl, time, urllib.request
+import json, sys, os, ssl, time, urllib.request, urllib.error
 from concurrent.futures import ThreadPoolExecutor
 # reconfigure in place — see note in tag_store.py (avoid double-wrapping sys.stdout)
 if hasattr(sys.stdout, "reconfigure"):
@@ -46,16 +46,30 @@ def _build_request(title, b64, mime, style_hint, key):
     }
 
 
+def _http(req, tries=4):
+    """Transient-error-tolerant JSON request (Gemini occasionally drops the connection)."""
+    last = None
+    for i in range(tries):
+        try:
+            with urllib.request.urlopen(req, timeout=120, context=CTX) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            # 4xx are real (bad request/quota) — don't retry, surface the body
+            body = e.read().decode("utf-8", "replace")[:400]
+            raise RuntimeError(f"HTTP {e.code}: {body}") from None
+        except Exception as e:
+            last = e
+            time.sleep(2 * (i + 1))  # 2s,4s,6s
+    raise last
+
+
 def _post(url, body):
-    req = urllib.request.Request(url, data=json.dumps(body).encode(),
-                                 headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=120, context=CTX) as r:
-        return json.load(r)
+    return _http(urllib.request.Request(url, data=json.dumps(body).encode(),
+                                        headers={"Content-Type": "application/json"}))
 
 
 def _get(url):
-    with urllib.request.urlopen(urllib.request.Request(url), timeout=120, context=CTX) as r:
-        return json.load(r)
+    return _http(urllib.request.Request(url))
 
 
 def submit_chunk(reqs, display_name):
@@ -89,7 +103,14 @@ def poll(name, every=10, timeout=3600):
     url = f"{BASE}/{name}?key={KEY}"
     t0 = time.time()
     while True:
-        obj = _get(url)
+        try:
+            obj = _get(url)
+        except Exception as e:
+            # the job runs server-side; a flaky poll shouldn't kill it — retry until timeout
+            if time.time() - t0 > timeout:
+                raise
+            print(f"  poll blip, retrying ({str(e)[:50]})", flush=True)
+            time.sleep(every); continue
         state = _state_of(obj)
         if obj.get("done") or "SUCCEEDED" in state:
             return _responses_of(obj)
