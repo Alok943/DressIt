@@ -206,43 +206,61 @@ const SHOWCASE_BRANDS = [
   { key: 'offduty', name: 'Offduty', logo: '/logos/offduty.avif' },
 ];
 
-// Brand logo on an adaptive chip. The source marks are mixed (Snitch black,
-// Bonkers white, Offduty yellow) so no single backdrop shows them all in true
-// colour — we measure each logo's average luminance on load and put light/white
-// marks on a dark chip, dark marks on a light chip. Original colours, always legible.
-function BrandLogo({ src, name }) {
-  const [tone, setTone] = useState(null); // 'light' logo → dark chip; 'dark' logo → light chip
-  const onLoad = (e) => {
-    try {
-      const img = e.currentTarget;
-      const c = document.createElement('canvas');
-      const w = (c.width = 64), h = (c.height = 28);
-      const ctx = c.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-      const d = ctx.getImageData(0, 0, w, h).data;
-      let lum = 0, a = 0;
-      for (let i = 0; i < d.length; i += 4) {
-        const al = d[i + 3] / 255;
-        if (al < 0.12) continue; // ignore transparent pixels
-        lum += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) * al;
-        a += al;
-      }
-      const avg = a ? lum / a : 0;
-      setTone(avg > 135 ? 'light' : 'dark');
-    } catch { setTone('dark'); }
-  };
+// Average luminance of a logo's opaque pixels — used to pick its chip backdrop.
+function logoLuminance(img) {
+  const c = document.createElement('canvas');
+  const w = (c.width = 64), h = (c.height = 28);
+  const ctx = c.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+  const d = ctx.getImageData(0, 0, w, h).data;
+  let lum = 0, a = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    const al = d[i + 3] / 255;
+    if (al < 0.12) continue; // ignore transparent pixels
+    lum += (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) * al;
+    a += al;
+  }
+  return a ? lum / a : 0;
+}
+
+// Brand logo on an adaptive chip. Source marks are mixed (Snitch black, Bonkers
+// white, Offduty yellow) so no single backdrop shows them all in true colour —
+// `tone` (measured once per brand by the parent) puts light/white marks on a dark
+// chip and dark marks on a light chip. Hidden until measured to avoid a flash.
+function BrandLogo({ src, name, tone }) {
   return (
     <span className={'dz-brand-chip' + (tone === 'light' ? ' dz-brand-chip--dark' : '')}>
-      <img className="dz-brand-logo" src={src} alt={name} title={name} loading="lazy" onLoad={onLoad} />
+      <img
+        className="dz-brand-logo" src={src} alt={name} title={name}
+        style={{ opacity: tone ? 1 : 0, transition: 'opacity .25s ease' }}
+      />
     </span>
   );
 }
 
 function Landing({ onStart, onSearch, catalog }) {
   const [query, setQuery] = useState('');
+  const [tones, setTones] = useState({}); // brand key -> 'light' | 'dark' (the logo's tone)
   const showcase = useMemo(() => pickShowcase(catalog, 18), [catalog]);
   const collage = showcase.slice(0, 4);
   const marquee = showcase.slice(4, 18);
+
+  // measure each brand logo's luminance once (not per marquee copy) so every
+  // instance gets the right chip — a light/white mark on a dark chip, etc.
+  useEffect(() => {
+    let alive = true;
+    SHOWCASE_BRANDS.forEach((b) => {
+      const img = new Image();
+      img.onload = () => {
+        if (!alive) return;
+        let tone = 'dark';
+        try { tone = logoLuminance(img) > 135 ? 'light' : 'dark'; } catch { /* keep default */ }
+        setTones((t) => (t[b.key] ? t : { ...t, [b.key]: tone }));
+      };
+      img.src = b.logo;
+    });
+    return () => { alive = false; };
+  }, []);
 
   return (
     <div className="dz-landing">
@@ -318,10 +336,14 @@ function Landing({ onStart, onSearch, catalog }) {
       {/* Brands — the labels stocked behind the quiz */}
       <section className="dz-brands">
         <span className="dz-brands-label">Curated from India's best D2C labels</span>
-        <div className="dz-brands-row">
-          {SHOWCASE_BRANDS.map((b) => (
-            <BrandLogo key={b.key} src={b.logo} name={b.name} />
-          ))}
+        <div className="dz-brands-marquee">
+          {/* repeated 4× so one half of the track always exceeds the viewport and
+              translateX(-50%) loops with no gap */}
+          <div className="dz-brands-track">
+            {[...SHOWCASE_BRANDS, ...SHOWCASE_BRANDS, ...SHOWCASE_BRANDS, ...SHOWCASE_BRANDS].map((b, i) => (
+              <BrandLogo key={b.key + '-' + i} src={b.logo} name={b.name} tone={tones[b.key]} />
+            ))}
+          </div>
         </div>
       </section>
 

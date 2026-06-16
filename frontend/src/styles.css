@@ -245,21 +245,35 @@ a { color: inherit; }
 /* Brand lockups — labels stocked behind the quiz */
 .dz-brands {
   text-align: center;
-  padding: 40px 20px 8px;
+  padding: 40px 0 8px;            /* full-bleed so the marquee floats edge to edge */
 }
 .dz-brands-label {
   display: block;
   font-size: 12px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--ink-soft);
-  margin-bottom: 20px;
+  margin-bottom: 22px;
+  padding: 0 20px;
 }
-.dz-brands-row {
-  display: flex; align-items: center; justify-content: center;
-  flex-wrap: wrap; gap: 16px;
+/* Brand logos as a continuously auto-scrolling marquee (like the lookbook strip).
+   Track holds the list repeated so translateX(-50%) loops seamlessly. */
+.dz-brands-marquee {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+}
+.dz-brands-track {
+  display: flex; align-items: center; gap: 16px;
+  width: max-content;
+  animation: dzMarquee 42s linear infinite;
+}
+.dz-brands-marquee:hover .dz-brands-track { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .dz-brands-track { animation: none; }
 }
 /* Each logo sits on an adaptive chip (set in JS by luminance): dark marks on a
    light chip, light/white marks on a dark chip — true brand colour, always legible. */
 .dz-brand-chip {
+  flex: 0 0 auto;
   display: inline-flex; align-items: center; justify-content: center;
   height: 60px; padding: 0 26px;
   border-radius: 14px;
@@ -280,26 +294,6 @@ a { color: inherit; }
   height: 26px; width: auto; max-width: 132px;
   object-fit: contain;
   display: block;
-}
-
-/* Mobile: single horizontal swipe row instead of a tall stacked column */
-@media (max-width: 639px) {
-  .dz-brands-row {
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    gap: 12px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scroll-snap-type: x proximity;
-    padding: 4px 20px;            /* edge breathing room so first/last chip aren't clipped */
-    margin: 0 -20px;             /* bleed to the screen edges */
-    scrollbar-width: none;
-  }
-  .dz-brands-row::-webkit-scrollbar { display: none; }
-  .dz-brand-chip {
-    flex: 0 0 auto;              /* keep natural width, don't shrink */
-    scroll-snap-align: center;
-  }
 }
 
 /* Hero collage — 2×2 staggered grid of real product shots */
