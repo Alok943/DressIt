@@ -46,7 +46,7 @@ def _build_request(title, b64, mime, style_hint, key):
     }
 
 
-def _http(req, tries=4):
+def _http(req, tries=6):
     """Transient-error-tolerant JSON request (Gemini occasionally drops the connection)."""
     last = None
     for i in range(tries):
@@ -59,7 +59,7 @@ def _http(req, tries=4):
             raise RuntimeError(f"HTTP {e.code}: {body}") from None
         except Exception as e:
             last = e
-            time.sleep(2 * (i + 1))  # 2s,4s,6s
+            time.sleep(min(5 * (i + 1), 30))  # 5,10,15,20,25 — ride out longer SSL/network blips
     raise last
 
 
@@ -197,7 +197,11 @@ def main():
 
     results = list(done.values())
     chunks = [prepared[i:i + chunk] for i in range(0, len(prepared), chunk)]
+    failed_chunks = 0
     for ci, ck in enumerate(chunks):
+      # a failed job (network/SSL/quota) must NOT abort the whole run — its products
+      # simply stay untagged and get picked up on the next resume-safe re-run
+      try:
         reqs = [r[2] for r in ck]
         name = submit_chunk(reqs, f"{brand}-{ci}")
         print(f"  job {ci+1}/{len(chunks)} submitted ({name}); polling...", flush=True)
@@ -252,7 +256,15 @@ def main():
             got += 1
         json.dump(results, open(tagged_path, "w", encoding="utf-8"), ensure_ascii=False)  # checkpoint per job
         print(f"    job {ci+1} done: {got}/{len(ck)} tagged ({len(results)} total)", flush=True)
+      except Exception as e:
+        failed_chunks += 1
+        json.dump(results, open(tagged_path, "w", encoding="utf-8"), ensure_ascii=False)  # keep progress
+        print(f"    job {ci+1} FAILED ({str(e)[:70]}) — skipping; re-run to pick these up", flush=True)
+        time.sleep(5)
+        continue
 
+    if failed_chunks:
+        print(f"\n{failed_chunks} job(s) failed this run — just re-run the same command to tag the rest.")
     print(f"\ntagged {len(results) - len(done)} new ({len(results)} total) -> {tagged_path}")
     validate_summary(results)
     print(f"\nNOT merged. Review the file, then run:  python merge_catalog.py {brand}")
