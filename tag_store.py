@@ -18,7 +18,7 @@ Then review the file and run:  python merge_catalog.py <brand>
 """
 import json, sys, io, os, ssl, time, urllib.request
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
-from tagger import tag_product, MODEL
+from tagger import tag_product, MODEL, STREETWEAR_HINT
 
 CTX = ssl._create_unverified_context()
 # A complete, realistic browser header set. Bonkers Corner (and other Cloudflare-fronted
@@ -45,12 +45,12 @@ def gender_from_store(p):
     if m and not w: return "men"
     return None  # ambiguous or silent -> VLM fallback
 
-def tag_with_retry(title, image_url, tries=3):
+def tag_with_retry(title, image_url, style_hint="", tries=3):
     """Retry transient network/SSL/DNS errors with backoff; raise after `tries`."""
     last = None
     for i in range(tries):
         try:
-            return tag_product(title, image_url)
+            return tag_product(title, image_url, style_hint)
         except Exception as e:
             last = e
             time.sleep(2 * (i + 1))  # 2s, 4s
@@ -86,11 +86,16 @@ def pull_all(host):
 
 def main():
     if len(sys.argv) < 3:
-        print("usage: python tag_store.py <host> <brand> [--limit N]"); return
+        print("usage: python tag_store.py <host> <brand> [--limit N] [--streetwear] [--from-raw]")
+        print("  --streetwear  nudge ambiguous/roomy cuts toward oversized (streetwear labels)")
+        print("  --from-raw    tag from data/raw_<brand>.json instead of pulling the live feed")
+        return
     host, brand = sys.argv[1], sys.argv[2]
     limit = 100000  # max NEW products to tag this run
     if "--limit" in sys.argv:
         limit = int(sys.argv[sys.argv.index("--limit") + 1])
+    style_hint = STREETWEAR_HINT if "--streetwear" in sys.argv else ""
+    from_raw = "--from-raw" in sys.argv
 
     tagged_path = f"data/tagged_{brand}.json"
     done = {}
@@ -99,10 +104,16 @@ def main():
         done = {x["link"]: x for x in json.load(open(tagged_path, encoding="utf-8")) if x.get("link")}
         print(f"resuming: {len(done)} already tagged")
 
-    prods = pull_all(host)
+    if from_raw:
+        raw_path = f"data/raw_{brand}.json"
+        d = json.load(open(raw_path, encoding="utf-8"))
+        prods = d.get("products", d) if isinstance(d, dict) else d
+        print(f"loaded {len(prods)} from {raw_path} (--from-raw)")
+    else:
+        prods = pull_all(host)
     todo = sum(1 for p in prods if f"https://{host}/products/{p.get('handle')}" not in done)
-    print(f"pulled {len(prods)} from {host}; {todo} untagged, tagging up to {limit} this run "
-          f"with {MODEL} ...\n", flush=True)
+    print(f"{len(prods)} products from {brand}; {todo} untagged, tagging up to {limit} this run "
+          f"with {MODEL}{' [streetwear]' if style_hint else ''} ...\n", flush=True)
 
     results = list(done.values())
     t0, n, fails = time.time(), 0, 0
@@ -120,7 +131,7 @@ def main():
             continue
         tag_img = img + ("&" if "?" in img else "?") + "width=512"  # smaller -> faster + fewer drops
         try:
-            attrs = tag_with_retry(p.get("title", ""), tag_img)
+            attrs = tag_with_retry(p.get("title", ""), tag_img, style_hint)
         except Exception as e:
             fails += 1; print(f"  FAIL (skipped, will retry on re-run) {str(e)[:50]}", flush=True); continue
         try:

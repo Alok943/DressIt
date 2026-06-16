@@ -78,14 +78,24 @@ def _fetch_image_b64(url):
     with urllib.request.urlopen(req, timeout=25, context=CTX) as r:
         return base64.b64encode(r.read()).decode(), r.headers.get("Content-Type", "image/jpeg")
 
-def tag_product(title, image_url):
+# Optional per-store nudge. Bake-off (Claude vs Gemini on Bonkers) showed Gemini
+# under-calls oversized on streetwear catalogs — it defaults ambiguous cuts to
+# 'regular'. Pass this for streetwear labels so roomy/ambiguous pieces lean oversized.
+STREETWEAR_HINT = (
+    "\nSTORE STYLE: this is a streetwear label whose tees, sweatshirts and hoodies are "
+    "predominantly cut OVERSIZED (dropped shoulders, boxy). If the garment looks roomy or "
+    "boxy, or the fit is ambiguous and the title has no explicit fit word, prefer "
+    "'oversized' (or 'relaxed') over 'regular'.\n"
+)
+
+def tag_product(title, image_url, style_hint=""):
     if not KEY:
         raise RuntimeError("Set GEMINI_API_KEY")
     b64, mime = _fetch_image_b64(image_url)
     mime = "image/jpeg" if "jpeg" in mime or "jpg" in mime else ("image/png" if "png" in mime else "image/webp")
     body = {
         "contents": [{"parts": [
-            {"text": PROMPT + f"\n\nTitle: {title}"},
+            {"text": PROMPT + style_hint + f"\n\nTitle: {title}"},
             {"inline_data": {"mime_type": mime, "data": b64}},
         ]}],
         "generationConfig": {"temperature": 0, "responseMimeType": "application/json"},
