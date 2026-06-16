@@ -282,6 +282,26 @@ a { color: inherit; }
   display: block;
 }
 
+/* Mobile: single horizontal swipe row instead of a tall stacked column */
+@media (max-width: 639px) {
+  .dz-brands-row {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    padding: 4px 20px;            /* edge breathing room so first/last chip aren't clipped */
+    margin: 0 -20px;             /* bleed to the screen edges */
+    scrollbar-width: none;
+  }
+  .dz-brands-row::-webkit-scrollbar { display: none; }
+  .dz-brand-chip {
+    flex: 0 0 auto;              /* keep natural width, don't shrink */
+    scroll-snap-align: center;
+  }
+}
+
 /* Hero collage — 2×2 staggered grid of real product shots */
 .dz-hero-collage {
   display: grid;
