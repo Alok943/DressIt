@@ -19,9 +19,11 @@ NOTE: the per-item tag_store.py is simpler and already works; batch mainly saves
 cost at scale. SMOKE-TEST with --limit 20 --chunk 20 before a full run, and paste
 any API error — batch response field names can shift between API versions.
 """
-import json, sys, io, os, ssl, time, urllib.request
+import json, sys, os, ssl, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+# reconfigure in place — see note in tag_store.py (avoid double-wrapping sys.stdout)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 
 from tagger import PROMPT, STREETWEAR_HINT, ALLOWED, MODEL, KEY, _fetch_image_b64
 from tag_store import band, gender_from_store, validate_summary, pull_all

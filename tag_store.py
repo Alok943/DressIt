@@ -16,8 +16,11 @@ from the store's own tags/title (VLM fallback), prints a validation summary.
 Progress every 10, resumable (skips links already in data/tagged_<brand>.json).
 Then review the file and run:  python merge_catalog.py <brand>
 """
-import json, sys, io, os, ssl, time, urllib.request
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace", line_buffering=True)
+import json, sys, os, ssl, time, urllib.request
+# reconfigure in place (don't re-wrap sys.stdout — a second wrapper elsewhere would
+# orphan the first, whose __del__ closes the shared buffer -> "I/O on closed file")
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 from tagger import tag_product, MODEL, STREETWEAR_HINT
 
 CTX = ssl._create_unverified_context()
