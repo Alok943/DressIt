@@ -19,6 +19,7 @@ product_sizes[].available->variant availability, price->variant price.
 import json, sys, os, ssl, time, urllib.request, urllib.parse
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
+from tag_store import gender_from_store  # to drop off-gender leakage (--women / --men)
 
 CTX = ssl._create_unverified_context()
 H = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -63,8 +64,8 @@ def to_raw(p):
         "handle": p.get("url"),
         "link": f"https://www.bewakoof.com/p/{p.get('url')}",
         "title": p.get("name"),
-        "product_type": "",                       # Bewakoof has none; gender comes from title/tags
-        "tags": p.get("tags") or [],
+        "product_type": "",                       # Bewakoof has none; gender comes from the title
+        "tags": [t for t in (p.get("tags") or []) if isinstance(t, str)],  # Bewakoof tags are dicts -> drop
         "variants": variants,
         "images": [{"src": IMG + img}] if img else [],
     }
@@ -84,10 +85,18 @@ def main():
         print(f"  {slug:32s} {len(prods):3d} returned, +{new} new ({len(by_id)} total)", flush=True)
         time.sleep(0.4)
 
+    rows = list(by_id.values())
+    # women's/men's collection slugs aren't strictly gender-filtered server-side;
+    # drop the off-gender leakage (title says "Men's"/"Women's") on request
+    if "--women" in sys.argv:
+        rows = [p for p in rows if gender_from_store(p) != "men"]
+    elif "--men" in sys.argv:
+        rows = [p for p in rows if gender_from_store(p) != "women"]
+
     os.makedirs("data", exist_ok=True)
     path = "data/raw_bewakoof.json"
-    json.dump({"products": list(by_id.values())}, open(path, "w", encoding="utf-8"), ensure_ascii=False)
-    print(f"\nwrote {len(by_id)} products -> {path}")
+    json.dump({"products": rows}, open(path, "w", encoding="utf-8"), ensure_ascii=False)
+    print(f"\nwrote {len(rows)} products -> {path}")
     print("next:  python tag_store_batch.py - bewakoof --from-raw --streetwear")
 
 

@@ -42,7 +42,8 @@ _WOMEN = re.compile(r"\bwomen|\bwoman\b|\bgirl|womens\b|\bher\b|\bladies", re.I)
 _MEN = re.compile(r"\bmen\b|\bmens\b|\bman\b|\bboys?\b|\bhis\b", re.I)
 def gender_from_store(p):
     """Derive gender from the store's own title/tags/type. Returns men/women/None (None -> let VLM decide)."""
-    blob = f"{p.get('title','')} {p.get('product_type','')} {' '.join(p.get('tags',[]))}"
+    tags = [t for t in (p.get('tags') or []) if isinstance(t, str)]  # some stores use dict tags
+    blob = f"{p.get('title','')} {p.get('product_type','')} {' '.join(tags)}"
     w, m = bool(_WOMEN.search(blob)), bool(_MEN.search(blob))
     if w and not m: return "women"
     if m and not w: return "men"
