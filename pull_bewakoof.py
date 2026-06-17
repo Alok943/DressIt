@@ -29,13 +29,20 @@ H = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 API = "https://api-prod.bewakoof.com/v2/collection/widgets"
 IMG = "https://images.bewakoof.com/t640/"
 
-# a starter set — extend with any slug from a bewakoof.com category-page URL
+# Curated women+men collection slugs (bad/empty ones harmlessly return 0). Pair with
+# --women or --men to drop the off-gender leakage. Extend with any slug from a
+# bewakoof.com category-page URL (the path after the domain).
 DEFAULT_SLUGS = [
-    "new-arrivals",
-    "men-half-sleeve-t-shirts", "men-oversized-t-shirts", "men-shirts", "men-jeans",
-    "men-joggers-and-track-pants", "men-hoodies", "men-sweatshirts", "men-shorts",
-    "womens-t-shirts", "womens-dresses", "womens-tops", "womens-denims",
-    "womens-co-ords", "track-pants-for-women", "women-sweatshirts-hoodies",
+    # women
+    "womens-denims", "womens-t-shirts", "oversized-t-shirts-for-women", "women-dresses",
+    "women-shirts", "womens-hoodies", "sweatshirts-for-women", "track-pants-for-women",
+    "women-tops", "women-crop-tops", "women-skirts", "women-shorts", "jackets-for-women",
+    "tank-tops-for-women", "leggings-for-women", "jumpsuits-for-women",
+    # men
+    "men-half-sleeve-t-shirts", "men-oversized-t-shirts", "men-full-sleeve-t-shirts",
+    "men-shirts", "men-oversized-shirts", "men-jeans", "men-joggers-and-track-pants",
+    "men-hoodies", "men-sweatshirts", "men-shorts", "men-cargo-pants", "men-trousers",
+    "men-polo-t-shirts", "men-jackets", "men-co-ords", "men-vests",
 ]
 
 
