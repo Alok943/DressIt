@@ -159,12 +159,14 @@ def main():
         prods = pull_all(host)
         print(f"pulled {len(prods)} from {host}")
 
-    # build the work list: untagged + available + has image, up to --limit
+    # build the work list: untagged + available + has image, up to --limit.
+    # Prefer an explicit `link` on the raw product (custom stores like Bewakoof use
+    # /p/<slug>, not Shopify's /products/<handle>); fall back to the Shopify shape.
     work = []
     for p in prods:
         if len(work) >= limit:
             break
-        link = f"https://{host}/products/{p.get('handle')}"
+        link = p.get("link") or f"https://{host}/products/{p.get('handle')}"
         if link in done:
             continue
         if not any(v.get("available") for v in p.get("variants", [])):

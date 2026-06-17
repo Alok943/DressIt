@@ -123,7 +123,7 @@ def main():
     for p in prods:
         if n >= limit:
             break  # hit this run's NEW-tag budget; re-run to continue
-        link = f"https://{host}/products/{p.get('handle')}"
+        link = p.get("link") or f"https://{host}/products/{p.get('handle')}"  # honor explicit link (custom stores)
         if link in done:
             continue
         variants = p.get("variants", [])
